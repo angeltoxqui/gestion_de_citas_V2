@@ -17,52 +17,52 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!selectedRole || !email || !password) {
-      setError('Please fill in all fields and select your role.')
+      setError('Por favor completa todos los campos y selecciona tu rol.')
       return
     }
-    
+
     setIsLoading(true)
     setError('')
-    
-         try {
-       // Use Firebase authentication
-       const user = await login(email, password)
-       
-       // Fetch the user's role from Firestore
-       const userRole = await fetchUserRoleFromFirestore(user.uid)
-       
-       // Check if user's role matches selected role
-       if (userRole === selectedRole) {
-         // Redirect based on role
-         if (selectedRole === 'doctor') {
-           navigate('/doctor')
-         } else if (selectedRole === 'receptionist') {
-           navigate('/receptionist')
-         }
-       } else if (userRole) {
-         setError(`Selected role does not match your account role. Your account is registered as: ${userRole}`)
-         setIsLoading(false)
-       } else {
-         // If no role is found, redirect to doctor by default (fallback)
-         navigate('/doctor')
-       }
+
+    try {
+      // Use Firebase authentication
+      const user = await login(email, password)
+
+      // Fetch the user's role from Firestore
+      const userRole = await fetchUserRoleFromFirestore(user.uid)
+
+      // Check if user's role matches selected role
+      if (userRole === selectedRole) {
+        // Redirect based on role
+        if (selectedRole === 'doctor') {
+          navigate('/doctor')
+        } else if (selectedRole === 'receptionist') {
+          navigate('/receptionist')
+        }
+      } else if (userRole) {
+        setError(`El rol seleccionado no coincide con tu cuenta. Tu cuenta está registrada como: ${userRole}`)
+        setIsLoading(false)
+      } else {
+        // If no role is found, redirect to doctor by default (fallback)
+        navigate('/doctor')
+      }
     } catch (error) {
       console.error('Login error:', error)
       // Handle specific Firebase errors
-      let errorMessage = 'Failed to sign in. Please try again.'
-      
+      let errorMessage = 'Error al iniciar sesión. Por favor intenta de nuevo.'
+
       if (error.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email address.'
+        errorMessage = 'No se encontró una cuenta con este correo.'
       } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password. Please try again.'
+        errorMessage = 'Contraseña incorrecta. Por favor intenta de nuevo.'
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.'
+        errorMessage = 'Por favor ingresa un correo electrónico válido.'
       } else if (error.code === 'auth/user-disabled') {
-        errorMessage = 'This account has been disabled.'
+        errorMessage = 'Esta cuenta ha sido deshabilitada.'
       } else if (error.message.includes('No document to update')) {
-        errorMessage = 'Account setup incomplete. Please contact support.'
+        errorMessage = 'Configuración de cuenta incompleta. Contacta a soporte.'
       }
-      
+
       setError(errorMessage)
       setIsLoading(false)
     }
@@ -76,10 +76,10 @@ export default function Login() {
         <div className="absolute top-20 left-20 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute top-40 right-20 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse animation-delay-1000"></div>
         <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-sky-500/20 rounded-full blur-3xl animate-pulse animation-delay-2000"></div>
-        
+
         {/* Grid pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-        
+
         {/* Radial gradient overlay */}
         <div className="absolute inset-0 bg-radial-gradient from-transparent via-slate-900/50 to-slate-900"></div>
       </div>
@@ -93,10 +93,10 @@ export default function Login() {
               <FaHospital className="w-10 h-10 text-slate-900" />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-sky-400 bg-clip-text text-transparent mb-3">
-              Welcome Back
+              Bienvenido de Nuevo
             </h1>
             <p className="text-lg text-slate-300 leading-relaxed">
-              Access your professional healthcare dashboard
+              Accede a tu panel profesional
             </p>
           </div>
 
@@ -106,48 +106,44 @@ export default function Login() {
               {/* Professional Role Selection */}
               <div className="space-y-3">
                 <label className="block text-sm font-semibold text-slate-200">
-                  Professional Role
+                  Rol Profesional
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setSelectedRole('doctor')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${
-                      selectedRole === 'doctor'
+                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${selectedRole === 'doctor'
                         ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/20'
                         : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col items-center space-y-2">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                        selectedRole === 'doctor'
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${selectedRole === 'doctor'
                           ? 'bg-blue-400 text-slate-900'
                           : 'bg-white/10 text-slate-300'
-                      }`}>
+                        }`}>
                         <FaUserDoctor className="w-6 h-6" />
                       </div>
-                      <span className="text-sm font-medium">Doctor</span>
+                      <span className="text-sm font-medium">Profesional</span>
                     </div>
                   </button>
-                  
+
                   <button
                     type="button"
                     onClick={() => setSelectedRole('receptionist')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${
-                      selectedRole === 'receptionist'
+                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${selectedRole === 'receptionist'
                         ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/20'
                         : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col items-center space-y-2">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                        selectedRole === 'receptionist'
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${selectedRole === 'receptionist'
                           ? 'bg-blue-400 text-slate-900'
                           : 'bg-white/10 text-slate-300'
-                      }`}>
+                        }`}>
                         <FaUserTie className="w-6 h-6" />
                       </div>
-                      <span className="text-sm font-medium">Receptionist</span>
+                      <span className="text-sm font-medium">Recepcionista</span>
                     </div>
                   </button>
                 </div>
@@ -156,15 +152,15 @@ export default function Login() {
               {/* Email Field */}
               <div className="space-y-3">
                 <label className="block text-sm font-semibold text-slate-200">
-                  Email Address
+                  Correo Electrónico
                 </label>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-400 transition-colors duration-300">
                     <FaEnvelope className="w-4 h-4" />
                   </div>
-                  <input 
-                    type="email" 
-                    placeholder="Enter your email"
+                  <input
+                    type="email"
+                    placeholder="Ingresa tu correo"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-12 pr-4 py-4 bg-white/5 border-2 border-white/10 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20"
@@ -176,36 +172,36 @@ export default function Login() {
               {/* Password Field */}
               <div className="space-y-3">
                 <label className="block text-sm font-semibold text-slate-200">
-                  Password
+                  Contraseña
                 </label>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-400 transition-colors duration-300">
                     <FaLock className="w-4 h-4" />
                   </div>
-                  <input 
+                  <input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder="Ingresa tu contraseña"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-12 pr-12 py-4 bg-white/5 border-2 border-white/10 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20"
                     required
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-400 transition-colors duration-300"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <FaEyeSlash className="w-4 h-4" /> : <FaEye className="w-4 h-4" />}
                   </button>
                 </div>
-                
+
                 {/* Forgot Password Link */}
                 <div className="text-right">
-                  <Link 
+                  <Link
                     to="/forgot-password"
                     className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors duration-300 hover:underline"
                   >
-                    Forgot password?
+                    ¿Olvidaste tu contraseña?
                   </Link>
                 </div>
               </div>
@@ -218,7 +214,7 @@ export default function Login() {
               )}
 
               {/* Submit Button */}
-              <button 
+              <button
                 type="submit"
                 disabled={!selectedRole || !email || !password || isLoading}
                 className="w-full py-4 px-6 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed text-slate-900 font-bold text-lg rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:scale-100"
@@ -226,12 +222,12 @@ export default function Login() {
                 {isLoading ? (
                   <div className="flex items-center justify-center space-x-2">
                     <div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
-                    <span>Signing In...</span>
+                    <span>Iniciando Sesión...</span>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center space-x-2">
                     <FaArrowRight className="w-5 h-5" />
-                    <span>Sign In</span>
+                    <span>Iniciar Sesión</span>
                     <FaStar className="w-4 h-4" />
                   </div>
                 )}
@@ -244,18 +240,18 @@ export default function Login() {
                 <div className="w-full border-t border-white/10"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white/5 text-slate-400">New to our team?</span>
+                <span className="px-4 bg-white/5 text-slate-400">¿Nuevo en el equipo?</span>
               </div>
             </div>
 
             {/* Sign Up Link */}
             <div className="text-center">
-              <Link 
-                to="/signup" 
+              <Link
+                to="/signup"
                 className="inline-flex items-center justify-center w-full py-3 px-6 border-2 border-white/20 bg-white/5 hover:border-blue-400/40 hover:bg-blue-400/10 text-white font-medium rounded-2xl transition-all duration-300 hover:shadow-lg hover:shadow-blue-400/20"
               >
                 <FaShieldHalved className="w-4 h-4 mr-2" />
-                Create an account
+                Crear una cuenta
               </Link>
             </div>
           </div>
@@ -263,7 +259,7 @@ export default function Login() {
           {/* Footer */}
           <div className="text-center mt-8">
             <p className="text-sm text-slate-400">
-              Secure access to your healthcare workspace
+              Acceso seguro a tu espacio de trabajo
             </p>
           </div>
         </div>

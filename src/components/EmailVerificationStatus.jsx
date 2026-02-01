@@ -10,12 +10,12 @@ export default function EmailVerificationStatus() {
 
   const handleRefreshStatus = async () => {
     if (!currentUser) return
-    
+
     setIsChecking(true)
     try {
       // Simply reload the current user to get the latest verification status
       await currentUser.reload()
-      
+
       // Force a page refresh to update the UI with the latest status
       window.location.reload()
     } catch (error) {
@@ -27,7 +27,7 @@ export default function EmailVerificationStatus() {
 
   const handleResendEmail = async () => {
     if (!currentUser) return
-    
+
     setIsSending(true)
     setEmailSent(false)
     try {
@@ -53,13 +53,13 @@ export default function EmailVerificationStatus() {
           <FaCircleExclamation className="w-4 h-4 text-red-400" />
         )}
         <span className={`font-medium ${currentUser.emailVerified ? 'text-green-400' : 'text-red-400'}`}>
-          {currentUser.emailVerified ? 'Verified' : 'Not Verified'}
+          {currentUser.emailVerified ? 'Verificado' : 'No Verificado'}
         </span>
       </div>
-      
+
       {!currentUser.emailVerified && (
         <div className="flex space-x-2">
-          <button 
+          <button
             onClick={handleRefreshStatus}
             disabled={isChecking}
             className="text-xs bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 px-3 py-1 rounded transition-colors flex items-center space-x-1"
@@ -69,10 +69,10 @@ export default function EmailVerificationStatus() {
             ) : (
               <FaArrowsRotate className="w-3 h-3" />
             )}
-            <span>{isChecking ? 'Checking...' : 'Check Again'}</span>
+            <span>{isChecking ? 'Verificando...' : 'Verificar'}</span>
           </button>
-          
-          <button 
+
+          <button
             onClick={handleResendEmail}
             disabled={isSending}
             className="text-xs bg-green-500 hover:bg-green-600 disabled:bg-green-300 px-3 py-1 rounded transition-colors flex items-center space-x-1"
@@ -82,14 +82,14 @@ export default function EmailVerificationStatus() {
             ) : (
               <FaEnvelope className="w-3 h-3" />
             )}
-            <span>{isSending ? 'Sending...' : 'Resend Email'}</span>
+            <span>{isSending ? 'Enviando...' : 'Reenviar'}</span>
           </button>
         </div>
       )}
-      
+
       {emailSent && (
         <div className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded">
-          ✓ Verification email sent!
+          ✓ ¡Correo de verificación enviado!
         </div>
       )}
     </div>

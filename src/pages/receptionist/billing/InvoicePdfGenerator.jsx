@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { doc, getDoc } from 'firebase/firestore'
+import { useAuth } from '../../../hooks/useAuth'
+import { getDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import { 
-  ArrowLeft, 
-  Download, 
-  Printer, 
+import { getBusinessDoc } from '../../../utils/firestoreUtils'
+import {
+  ArrowLeft,
+  Download,
+  Printer,
   FileText,
   User,
   Phone,
@@ -22,14 +24,17 @@ import {
 export default function InvoicePdfGenerator() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { businessId } = useAuth()
   const [invoice, setInvoice] = useState(null)
   const [loading, setLoading] = useState(true)
   const [generatingPdf, setGeneratingPdf] = useState(false)
 
   useEffect(() => {
     const fetchInvoice = async () => {
+      if (!businessId) return
+
       try {
-        const invoiceDoc = await getDoc(doc(db, 'invoices', id))
+        const invoiceDoc = await getDoc(getBusinessDoc(businessId, 'invoices', id))
         if (invoiceDoc.exists()) {
           setInvoice({ id: invoiceDoc.id, ...invoiceDoc.data() })
         } else {
@@ -44,10 +49,10 @@ export default function InvoicePdfGenerator() {
       }
     }
 
-    if (id) {
+    if (id && businessId) {
       fetchInvoice()
     }
-  }, [id, navigate])
+  }, [id, navigate, businessId])
 
   // Get status icon and color
   const getStatusIcon = (status) => {
@@ -69,10 +74,10 @@ export default function InvoicePdfGenerator() {
     try {
       // Create a new window for printing
       const printWindow = window.open('', '_blank')
-      
+
       // Generate HTML content for the invoice
       const invoiceHTML = generateInvoiceHTML()
-      
+
       printWindow.document.write(`
         <!DOCTYPE html>
         <html>
@@ -199,14 +204,14 @@ export default function InvoicePdfGenerator() {
         </body>
         </html>
       `)
-      
+
       printWindow.document.close()
-      
+
       // Wait for content to load then print
       printWindow.onload = () => {
         printWindow.print()
       }
-      
+
     } catch (error) {
       console.error('Error generating PDF:', error)
       alert('Error generating PDF. Please try again.')
@@ -429,14 +434,13 @@ export default function InvoicePdfGenerator() {
                   <p><span className="font-medium">Date:</span> {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : 'N/A'}</p>
                   <p><span className="font-medium">Due Date:</span> {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A'}</p>
                   <p>
-                    <span className="font-medium">Status:</span> 
-                    <span className={`ml-2 px-3 py-1 rounded-full text-xs font-medium ${
-                      invoice.status === 'paid' 
-                        ? 'bg-green-100 text-green-800' 
+                    <span className="font-medium">Status:</span>
+                    <span className={`ml-2 px-3 py-1 rounded-full text-xs font-medium ${invoice.status === 'paid'
+                        ? 'bg-green-100 text-green-800'
                         : invoice.status === 'pending'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
                       {invoice.status?.charAt(0).toUpperCase() + invoice.status?.slice(1)}
                     </span>
                   </p>
@@ -466,12 +470,12 @@ export default function InvoicePdfGenerator() {
                         <td className="border border-gray-300 px-4 py-3 text-right font-medium">{item.amount?.toLocaleString() || '0'}</td>
                       </tr>
                     )) || (
-                      <tr>
-                        <td colSpan="4" className="border border-gray-300 px-4 py-3 text-center text-gray-500">
-                          No items
-                        </td>
-                      </tr>
-                    )}
+                        <tr>
+                          <td colSpan="4" className="border border-gray-300 px-4 py-3 text-center text-gray-500">
+                            No items
+                          </td>
+                        </tr>
+                      )}
                   </tbody>
                 </table>
               </div>

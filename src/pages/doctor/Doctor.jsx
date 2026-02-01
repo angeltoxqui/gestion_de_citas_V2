@@ -3,12 +3,13 @@ import { useAuth } from '../../hooks/useAuth'
 import { Link } from 'react-router-dom'
 import LogoutButton from '../../components/LogoutButton'
 import EmailVerificationStatus from '../../components/EmailVerificationStatus'
-import { FaUserDoctor, FaCalendar, FaUserInjured, FaPills, FaCalendarDay, FaFileLines, FaPlus, FaHashtag } from 'react-icons/fa6'
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore'
+import { FaUserDoctor, FaCalendar, FaUserInjured, FaPills, FaCalendarDay, FaFileLines, FaPlus, FaHashtag, FaGear, FaUsers } from 'react-icons/fa6'
+import { query, where, onSnapshot, doc, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import { getBusinessCollection } from '../../utils/firestoreUtils'
 
 export default function Doctor() {
-  const { currentUser, userRole } = useAuth()
+  const { currentUser, userRole, businessId } = useAuth()
   const [stats, setStats] = useState({
     todayAppointments: 0,
     waitingPatients: 0,
@@ -25,13 +26,13 @@ export default function Doctor() {
       try {
         const userDocRef = doc(db, 'staffData', currentUser.uid)
         const userDoc = await getDoc(userDocRef)
-        
+
         if (userDoc.exists()) {
           const userData = userDoc.data()
-          const name = userData.fullName || currentUser.displayName || 'Unknown Doctor'
+          const name = userData.fullName || currentUser.displayName || 'Profesional'
           setDoctorName(name)
         } else {
-          setDoctorName(currentUser.displayName || 'Unknown Doctor')
+          setDoctorName(currentUser.displayName || 'Profesional')
         }
       } catch (error) {
         console.error('Error fetching doctor name:', error)
@@ -44,14 +45,14 @@ export default function Doctor() {
 
   // Fetch real-time stats
   useEffect(() => {
-    if (!doctorName) return
+    if (!doctorName || !businessId) return
 
     const today = new Date().toISOString().split('T')[0]
     const weekStart = new Date()
     weekStart.setDate(weekStart.getDate() - 7)
 
-    // Query for today's appointments
-    const todayAppointmentsRef = collection(db, 'appointments')
+    // Query for today's appointments (multi-tenant)
+    const todayAppointmentsRef = getBusinessCollection(businessId, 'appointments')
     const todayQuery = query(
       todayAppointmentsRef,
       where('appointmentDate', '==', today),
@@ -59,15 +60,15 @@ export default function Doctor() {
     )
 
     // Query for waiting patients (tokens generated but not completed)
-    const waitingPatientsRef = collection(db, 'appointments')
+    const waitingPatientsRef = getBusinessCollection(businessId, 'appointments')
     const waitingQuery = query(
       waitingPatientsRef,
       where('appointmentDate', '==', today),
       where('doctorName', '==', doctorName)
     )
 
-    // Query for weekly prescriptions
-    const weeklyPrescriptionsRef = collection(db, 'prescriptions')
+    // Query for weekly prescriptions (multi-tenant)
+    const weeklyPrescriptionsRef = getBusinessCollection(businessId, 'prescriptions')
     const weeklyQuery = query(
       weeklyPrescriptionsRef,
       where('doctorId', '==', currentUser.uid)
@@ -101,7 +102,7 @@ export default function Doctor() {
       unsubscribeWaiting()
       unsubscribeWeekly()
     }
-  }, [doctorName, currentUser])
+  }, [doctorName, currentUser, businessId])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
@@ -113,8 +114,8 @@ export default function Doctor() {
               <FaUserDoctor className="w-6 h-6 text-blue-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Doctor Dashboard</h1>
-              <p className="text-sm text-slate-400">Welcome, {currentUser?.displayName || 'Doctor'}</p>
+              <h1 className="text-xl font-bold">Panel del Profesional</h1>
+              <p className="text-sm text-slate-400">Bienvenido, {currentUser?.displayName || 'Profesional'}</p>
             </div>
           </div>
           <LogoutButton />
@@ -129,90 +130,90 @@ export default function Doctor() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <FaCalendar className="w-6 h-6 text-blue-400" />
-                <h3 className="text-lg font-semibold">Today's Appointments</h3>
+                <h3 className="text-lg font-semibold">Citas de Hoy</h3>
               </div>
               <FaCalendarDay className="w-4 h-4 text-blue-400" />
             </div>
             {stats.loading ? (
               <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
-                <p className="text-lg text-slate-400">Loading...</p>
+                <p className="text-lg text-slate-400">Cargando...</p>
               </div>
             ) : (
               <>
                 <p className="text-3xl font-bold text-blue-400">{stats.todayAppointments}</p>
                 <p className="text-sm text-slate-400 mt-2">
-                  {stats.todayAppointments === 0 ? 'No appointments today' : 
-                   stats.todayAppointments === 1 ? 'appointment scheduled' : 
-                   'appointments scheduled'}
+                  {stats.todayAppointments === 0 ? 'Sin citas hoy' :
+                    stats.todayAppointments === 1 ? 'cita programada' :
+                      'citas programadas'}
                 </p>
               </>
             )}
-            <p className="text-xs text-blue-400 mt-2">Click to view all appointments →</p>
+            <p className="text-xs text-blue-400 mt-2">Clic para ver todas las citas →</p>
           </Link>
 
           <Link to="/doctor/tokens" className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl hover:bg-white/10 transition-colors cursor-pointer">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <FaHashtag className="w-6 h-6 text-yellow-400" />
-                <h3 className="text-lg font-semibold">Patient Queue</h3>
+                <h3 className="text-lg font-semibold">Cola de Clientes</h3>
               </div>
               <FaHashtag className="w-4 h-4 text-yellow-400" />
             </div>
             {stats.loading ? (
               <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400"></div>
-                <p className="text-lg text-slate-400">Loading...</p>
+                <p className="text-lg text-slate-400">Cargando...</p>
               </div>
             ) : (
               <>
                 <p className="text-3xl font-bold text-yellow-400">{stats.waitingPatients}</p>
                 <p className="text-sm text-slate-400 mt-2">
-                  {stats.waitingPatients === 0 ? 'No patients waiting' :
-                   stats.waitingPatients === 1 ? 'patient waiting' :
-                   'patients waiting'}
+                  {stats.waitingPatients === 0 ? 'Sin clientes en espera' :
+                    stats.waitingPatients === 1 ? 'cliente en espera' :
+                      'clientes en espera'}
                 </p>
               </>
             )}
-            <p className="text-xs text-yellow-400 mt-2">Click to view queue →</p>
+            <p className="text-xs text-yellow-400 mt-2">Clic para ver la cola →</p>
           </Link>
 
           <Link to="/doctor/prescriptions" className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl hover:bg-white/10 transition-colors cursor-pointer">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <FaPills className="w-6 h-6 text-purple-400" />
-                <h3 className="text-lg font-semibold">Prescriptions</h3>
+                <h3 className="text-lg font-semibold">Historiales</h3>
               </div>
               <FaFileLines className="w-4 h-4 text-purple-400" />
             </div>
             {stats.loading ? (
               <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-400"></div>
-                <p className="text-lg text-slate-400">Loading...</p>
+                <p className="text-lg text-slate-400">Cargando...</p>
               </div>
             ) : (
               <>
                 <p className="text-3xl font-bold text-purple-400">{stats.weeklyPrescriptions}</p>
                 <p className="text-sm text-slate-400 mt-2">
-                  {stats.weeklyPrescriptions === 0 ? 'No prescriptions this week' :
-                   'prescriptions this week'}
+                  {stats.weeklyPrescriptions === 0 ? 'Sin historiales esta semana' :
+                    'historiales esta semana'}
                 </p>
               </>
             )}
-            <p className="text-xs text-purple-400 mt-2">Click to manage prescriptions →</p>
+            <p className="text-xs text-purple-400 mt-2">Clic para gestionar historiales →</p>
           </Link>
         </div>
 
         {/* Quick Actions */}
         <div className="mt-8">
-          <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
+          <h2 className="text-xl font-bold mb-4">Acciones Rápidas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link to="/doctor/appointments" className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
               <div className="flex items-center space-x-3">
                 <FaCalendar className="w-5 h-5 text-blue-400" />
                 <div>
-                  <h3 className="font-semibold">View Appointments</h3>
-                  <p className="text-sm text-slate-400">Manage patient appointments</p>
+                  <h3 className="font-semibold">Ver Citas</h3>
+                  <p className="text-sm text-slate-400">Gestionar citas de clientes</p>
                 </div>
               </div>
             </Link>
@@ -221,8 +222,8 @@ export default function Doctor() {
               <div className="flex items-center space-x-3">
                 <FaPlus className="w-5 h-5 text-green-400" />
                 <div>
-                  <h3 className="font-semibold">New Prescription</h3>
-                  <p className="text-sm text-slate-400">Create prescription for patient</p>
+                  <h3 className="font-semibold">Nuevo Historial</h3>
+                  <p className="text-sm text-slate-400">Crear historial para cliente</p>
                 </div>
               </div>
             </Link>
@@ -231,18 +232,18 @@ export default function Doctor() {
               <div className="flex items-center space-x-3">
                 <FaFileLines className="w-5 h-5 text-purple-400" />
                 <div>
-                  <h3 className="font-semibold">View Prescriptions</h3>
-                  <p className="text-sm text-slate-400">Manage all prescriptions</p>
+                  <h3 className="font-semibold">Ver Historiales</h3>
+                  <p className="text-sm text-slate-400">Gestionar todos los historiales</p>
                 </div>
               </div>
             </Link>
 
-            <Link to="/doctor/prescriptions/medicines" className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
+            <Link to="/doctor/services" className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
               <div className="flex items-center space-x-3">
-                <FaPills className="w-5 h-5 text-yellow-400" />
+                <FaPills className="w-5 h-5 text-emerald-400" />
                 <div>
-                  <h3 className="font-semibold">Manage Medicines</h3>
-                  <p className="text-sm text-slate-400">Add/edit medicine inventory</p>
+                  <h3 className="font-semibold">Catálogo de Servicios</h3>
+                  <p className="text-sm text-slate-400">Gestionar servicios y precios</p>
                 </div>
               </div>
             </Link>
@@ -251,8 +252,28 @@ export default function Doctor() {
               <div className="flex items-center space-x-3">
                 <FaHashtag className="w-5 h-5 text-blue-400" />
                 <div>
-                  <h3 className="font-semibold">Patient Queue</h3>
-                  <p className="text-sm text-slate-400">View and manage patient tokens</p>
+                  <h3 className="font-semibold">Cola de Clientes</h3>
+                  <p className="text-sm text-slate-400">Ver y gestionar turnos de clientes</p>
+                </div>
+              </div>
+            </Link>
+
+            <Link to="/doctor/settings" className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
+              <div className="flex items-center space-x-3">
+                <FaGear className="w-5 h-5 text-slate-400" />
+                <div>
+                  <h3 className="font-semibold">Configuración del Negocio</h3>
+                  <p className="text-sm text-slate-400">Horarios, contacto y datos públicos</p>
+                </div>
+              </div>
+            </Link>
+
+            <Link to="/doctor/team" className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
+              <div className="flex items-center space-x-3">
+                <FaUsers className="w-5 h-5 text-indigo-400" />
+                <div>
+                  <h3 className="font-semibold">Gestión de Equipo</h3>
+                  <p className="text-sm text-slate-400">Agregar y gestionar profesionales</p>
                 </div>
               </div>
             </Link>
@@ -261,22 +282,22 @@ export default function Doctor() {
 
         {/* User Info Card */}
         <div className="mt-8 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-          <h2 className="text-xl font-bold mb-4">Account Information</h2>
+          <h2 className="text-xl font-bold mb-4">Información de Cuenta</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-slate-400 text-sm">Email</p>
+              <p className="text-slate-400 text-sm">Correo</p>
               <p className="text-white font-medium">{currentUser?.email}</p>
             </div>
             <div>
-              <p className="text-slate-400 text-sm">Role</p>
-              <p className="text-blue-400 font-medium capitalize">{userRole}</p>
+              <p className="text-slate-400 text-sm">Rol</p>
+              <p className="text-blue-400 font-medium capitalize">{userRole === 'doctor' ? 'Profesional' : userRole}</p>
             </div>
             <div>
-              <p className="text-slate-400 text-sm">Full Name</p>
+              <p className="text-slate-400 text-sm">Nombre Completo</p>
               <p className="text-white font-medium">{currentUser?.displayName}</p>
             </div>
             <div>
-              <p className="text-slate-400 text-sm">Email Verified</p>
+              <p className="text-slate-400 text-sm">Correo Verificado</p>
               <EmailVerificationStatus />
             </div>
           </div>

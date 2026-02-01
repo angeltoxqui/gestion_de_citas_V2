@@ -13,20 +13,20 @@ export default function ForgotPasswordForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim()) {
-      setError('Please enter your email address');
+      setError('Por favor ingresa tu correo electrónico');
       return;
     }
-    
+
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      setError('Please enter a valid email address');
+      setError('Por favor ingresa un correo electrónico válido');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
       // Use Firebase password reset
       await resetPassword(email.trim());
@@ -34,16 +34,16 @@ export default function ForgotPasswordForm() {
     } catch (error) {
       console.error('Password reset error:', error);
       // Handle specific Firebase errors
-      let errorMessage = 'Failed to send reset email. Please try again.';
-      
+      let errorMessage = 'Error al enviar el correo. Por favor intenta de nuevo.';
+
       if (error.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email address.';
+        errorMessage = 'No se encontró una cuenta con este correo.';
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
+        errorMessage = 'Por favor ingresa un correo electrónico válido.';
       } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many requests. Please try again later.';
+        errorMessage = 'Demasiadas solicitudes. Por favor intenta más tarde.';
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -67,36 +67,36 @@ export default function ForgotPasswordForm() {
                 <FaCircleCheck className="w-8 h-8 text-green-600 dark:text-green-400" />
               </div>
               <h2 className="text-2xl font-bold text-green-600 dark:text-green-400 mb-2">
-                Check Your Email
+                Revisa tu Correo
               </h2>
               <p className="text-base text-gray-600 dark:text-gray-400">
-                If an account with <strong>{email}</strong> exists, we've sent a password reset link
+                Si existe una cuenta con <strong>{email}</strong>, hemos enviado un enlace para restablecer tu contraseña
               </p>
             </div>
             <div className="space-y-6">
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                  What happens next?
+                  ¿Qué sigue?
                 </h4>
                 <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                  <li>• Check your email inbox (and spam folder)</li>
-                  <li>• Click the reset link in the email</li>
-                  <li>• Create a new password</li>
-                  <li>• Sign in with your new password</li>
+                  <li>• Revisa tu bandeja de entrada (y spam)</li>
+                  <li>• Haz clic en el enlace del correo</li>
+                  <li>• Crea una nueva contraseña</li>
+                  <li>• Inicia sesión con tu nueva contraseña</li>
                 </ul>
               </div>
               <div className="space-y-3">
-                <button 
+                <button
                   onClick={() => setIsSubmitted(false)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   <FaEnvelope className="w-4 h-4 mr-2 inline" />
-                  Resend Email
+                  Reenviar Correo
                 </button>
                 <Link to="/login">
                   <button className="w-full px-4 py-3 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
                     <FaArrowLeft className="w-4 h-4 mr-2 inline" />
-                    Back to Sign In
+                    Volver a Iniciar Sesión
                   </button>
                 </Link>
               </div>
@@ -104,12 +104,12 @@ export default function ForgotPasswordForm() {
           </div>
           <div className="text-center mt-6 text-sm text-gray-600 dark:text-gray-400">
             <p>
-              Didn't receive the email? Check your spam folder or{' '}
+              ¿No recibiste el correo? Revisa tu carpeta de spam o{' '}
               <button
                 onClick={() => setIsSubmitted(false)}
                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium hover:underline transition-colors"
               >
-                try again
+                intenta de nuevo
               </button>
             </p>
           </div>
@@ -136,10 +136,10 @@ export default function ForgotPasswordForm() {
               </div>
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-2 leading-tight">
-              Forgot Your Password?
+              ¿Olvidaste tu Contraseña?
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
-              Enter your email address and we'll send you a link to reset your password
+              Ingresa tu correo y te enviaremos un enlace para restablecerla
             </p>
           </div>
           <div className="space-y-6">
@@ -147,14 +147,14 @@ export default function ForgotPasswordForm() {
               {/* Email Field */}
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Email Address
+                  Correo Electrónico
                 </label>
                 <div className="relative">
                   <FaEnvelope className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     id="email"
                     type="email"
-                    placeholder="Enter your email address"
+                    placeholder="Ingresa tu correo electrónico"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-10 h-12 border-2 transition-all duration-300 border-gray-200 focus:border-blue-500 dark:border-gray-600 dark:focus:border-blue-400 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -168,32 +168,32 @@ export default function ForgotPasswordForm() {
                     <span className="text-sm">{error}</span>
                   </div>
                 )}
-                
+
                 {/* Helpful information */}
                 <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                  <p className="mb-1"><strong>What happens next?</strong></p>
+                  <p className="mb-1"><strong>¿Qué sigue?</strong></p>
                   <ul className="space-y-1">
-                    <li>• We'll process your password reset request</li>
-                    <li>• If an account exists, we'll send a reset link</li>
-                    <li>• Check your inbox (and spam folder)</li>
-                    <li>• Click the link to create a new password</li>
+                    <li>• Procesaremos tu solicitud</li>
+                    <li>• Si existe una cuenta, enviaremos el enlace</li>
+                    <li>• Revisa tu bandeja de entrada (y spam)</li>
+                    <li>• Haz clic en el enlace para crear tu nueva contraseña</li>
                   </ul>
                 </div>
               </div>
               {/* Submit Button */}
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="w-full h-12 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-medium text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <>
                     <FaCircleNotch className="w-5 h-5 mr-2 animate-spin inline" />
-                    Verifying & Sending...
+                    Verificando y Enviando...
                   </>
                 ) : (
                   <>
-                    Send Reset Link
+                    Enviar Enlace
                     <FaArrowRight className="w-5 h-5 ml-2 inline" />
                   </>
                 )}
@@ -201,24 +201,24 @@ export default function ForgotPasswordForm() {
             </form>
             {/* Back to Login */}
             <div className="text-center">
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className="inline-flex items-center text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium hover:underline transition-colors"
               >
                 <FaArrowLeft className="w-4 h-4 mr-2" />
-                Back to Sign In
+                Volver a Iniciar Sesión
               </Link>
             </div>
           </div>
         </div>
         <div className="text-center mt-6 text-sm text-gray-600 dark:text-gray-400">
           <p>
-            Remember your password?{' '}
-            <Link 
-              to="/login" 
+            ¿Recuerdas tu contraseña?{' '}
+            <Link
+              to="/login"
               className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium hover:underline transition-colors"
             >
-              Sign in here
+              Inicia sesión aquí
             </Link>
           </p>
         </div>

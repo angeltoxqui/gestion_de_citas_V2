@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
+import { useAuth } from '../../../hooks/useAuth'
+import { onSnapshot, query, orderBy } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import { 
-  ArrowLeft, 
-  Download, 
-  BarChart3, 
-  TrendingUp, 
-  DollarSign, 
-  FileText, 
-  Calendar, 
-  User, 
-  CreditCard, 
-  Banknote, 
+import { getBusinessCollection } from '../../../utils/firestoreUtils'
+import {
+  ArrowLeft,
+  Download,
+  BarChart3,
+  TrendingUp,
+  DollarSign,
+  FileText,
+  Calendar,
+  User,
+  CreditCard,
+  Banknote,
   Globe,
   CheckCircle,
   Clock,
@@ -24,6 +26,7 @@ import {
 } from 'lucide-react'
 
 export default function Reports() {
+  const { businessId } = useAuth()
   const [loading, setLoading] = useState(true)
   const [invoices, setInvoices] = useState([])
   const [payments, setPayments] = useState([])
@@ -38,10 +41,12 @@ export default function Reports() {
 
   const fetchData = async () => {
     try {
-      // Fetch invoices
-      const invoicesRef = collection(db, 'invoices')
+      if (!businessId) return
+
+      // Fetch invoices (multi-tenant)
+      const invoicesRef = getBusinessCollection(businessId, 'invoices')
       const invoicesQuery = query(invoicesRef, orderBy('createdAt', 'desc'))
-      
+
       const invoicesUnsubscribe = onSnapshot(invoicesQuery, (snapshot) => {
         const invoicesData = snapshot.docs.map(doc => ({
           id: doc.id,
@@ -50,10 +55,10 @@ export default function Reports() {
         setInvoices(invoicesData)
       })
 
-      // Fetch payments
-      const paymentsRef = collection(db, 'payments')
+      // Fetch payments (multi-tenant)
+      const paymentsRef = getBusinessCollection(businessId, 'payments')
       const paymentsQuery = query(paymentsRef, orderBy('processedAt', 'desc'))
-      
+
       const paymentsUnsubscribe = onSnapshot(paymentsQuery, (snapshot) => {
         const paymentsData = snapshot.docs.map(doc => ({
           id: doc.id,
@@ -171,22 +176,22 @@ export default function Reports() {
   // Calculate statistics
   const calculateStats = () => {
     const { filteredInvoices, filteredPayments } = getFilteredData()
-    
+
     const totalInvoices = filteredInvoices.length
     const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0)
     const paidInvoices = filteredInvoices.filter(invoice => invoice.status === 'paid').length
     const pendingInvoices = filteredInvoices.filter(invoice => invoice.status === 'pending').length
     const overdueInvoices = filteredInvoices.filter(invoice => invoice.status === 'overdue').length
-    
+
     const totalPayments = filteredPayments.length
     const totalPaymentAmount = filteredPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0)
-    
+
     // Payment method breakdown
     const paymentMethods = filteredPayments.reduce((acc, payment) => {
       acc[payment.method] = (acc[payment.method] || 0) + (payment.amount || 0)
       return acc
     }, {})
-    
+
     // Monthly trends
     const monthlyData = {}
     filteredInvoices.forEach(invoice => {
@@ -213,7 +218,7 @@ export default function Reports() {
   const downloadReport = () => {
     const stats = calculateStats()
     const { filteredInvoices, filteredPayments } = getFilteredData()
-    
+
     const reportData = {
       reportGenerated: new Date().toLocaleString(),
       dateRange: dateRange,
@@ -226,7 +231,7 @@ export default function Reports() {
       invoices: filteredInvoices,
       payments: filteredPayments
     }
-    
+
     const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -241,7 +246,7 @@ export default function Reports() {
   // Export to CSV
   const exportToCSV = () => {
     const { filteredInvoices, filteredPayments } = getFilteredData()
-    
+
     // Invoices CSV
     const invoicesCSV = [
       ['Invoice Number', 'Patient Name', 'Patient Phone', 'Total Amount', 'Status', 'Created Date', 'Due Date'],
@@ -255,7 +260,7 @@ export default function Reports() {
         invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : ''
       ])
     ].map(row => row.join(',')).join('\n')
-    
+
     // Payments CSV
     const paymentsCSV = [
       ['Invoice Number', 'Patient Name', 'Amount', 'Payment Method', 'Reference', 'Processed Date'],
@@ -268,28 +273,28 @@ export default function Reports() {
         payment.processedAt?.toDate?.()?.toLocaleDateString() || ''
       ])
     ].map(row => row.join(',')).join('\n')
-    
+
     // Download both files
     const invoicesBlob = new Blob([invoicesCSV], { type: 'text/csv' })
     const paymentsBlob = new Blob([paymentsCSV], { type: 'text/csv' })
-    
+
     const invoicesUrl = URL.createObjectURL(invoicesBlob)
     const paymentsUrl = URL.createObjectURL(paymentsBlob)
-    
+
     const invoicesLink = document.createElement('a')
     invoicesLink.href = invoicesUrl
     invoicesLink.download = `invoices-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`
     document.body.appendChild(invoicesLink)
     invoicesLink.click()
     document.body.removeChild(invoicesLink)
-    
+
     const paymentsLink = document.createElement('a')
     paymentsLink.href = paymentsUrl
     paymentsLink.download = `payments-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`
     document.body.appendChild(paymentsLink)
     paymentsLink.click()
     document.body.removeChild(paymentsLink)
-    
+
     URL.revokeObjectURL(invoicesUrl)
     URL.revokeObjectURL(paymentsUrl)
   }
@@ -327,7 +332,7 @@ export default function Reports() {
               <p className="text-sm text-slate-400">Financial analytics and insights</p>
             </div>
           </div>
-          
+
           {/* Export Buttons */}
           <div className="flex space-x-3">
             <button

@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { collection, onSnapshot, query, orderBy, where, updateDoc, doc, addDoc, serverTimestamp } from 'firebase/firestore'
+import { useAuth } from '../../../hooks/useAuth'
+import { onSnapshot, query, orderBy, where, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import { 
-  ArrowLeft, 
-  Search, 
-  DollarSign, 
-  CreditCard, 
-  Banknote, 
-  Globe, 
+import { getBusinessCollection, getBusinessDoc } from '../../../utils/firestoreUtils'
+import {
+  ArrowLeft,
+  Search,
+  DollarSign,
+  CreditCard,
+  Banknote,
+  Globe,
   Receipt,
   CheckCircle,
   Clock,
@@ -22,6 +24,7 @@ import {
 } from 'lucide-react'
 
 export default function PaymentProcessing() {
+  const { businessId } = useAuth()
   const [invoices, setInvoices] = useState([])
   const [filteredInvoices, setFilteredInvoices] = useState([])
   const [loading, setLoading] = useState(true)
@@ -38,12 +41,14 @@ export default function PaymentProcessing() {
 
   useEffect(() => {
     let unsubscribe
-    
+
     const fetchInvoices = () => {
+      if (!businessId) return
+
       try {
-        const invoicesRef = collection(db, 'invoices')
+        const invoicesRef = getBusinessCollection(businessId, 'invoices')
         const q = query(invoicesRef, where('status', 'in', ['pending', 'overdue']), orderBy('createdAt', 'desc'))
-        
+
         unsubscribe = onSnapshot(q, (snapshot) => {
           const invoicesData = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -61,15 +66,15 @@ export default function PaymentProcessing() {
         setLoading(false)
       }
     }
-    
+
     fetchInvoices()
-    
+
     return () => {
       if (unsubscribe) {
         unsubscribe()
       }
     }
-  }, [])
+  }, [businessId])
 
   // Filter invoices based on search
   useEffect(() => {
@@ -107,7 +112,7 @@ export default function PaymentProcessing() {
     setProcessingPayment(true)
     try {
       // Update invoice status
-      await updateDoc(doc(db, 'invoices', selectedInvoice.id), {
+      await updateDoc(getBusinessDoc(businessId, 'invoices', selectedInvoice.id), {
         status: 'paid',
         paymentMethod: paymentData.method,
         paymentDate: serverTimestamp(),
@@ -117,7 +122,7 @@ export default function PaymentProcessing() {
       })
 
       // Create payment record
-      await addDoc(collection(db, 'payments'), {
+      await addDoc(getBusinessCollection(businessId, 'payments'), {
         invoiceId: selectedInvoice.id,
         invoiceNumber: selectedInvoice.invoiceNumber,
         patientName: selectedInvoice.patientName,
@@ -165,12 +170,12 @@ export default function PaymentProcessing() {
   // Calculate days overdue
   const getDaysOverdue = (invoice) => {
     if (invoice.status === 'paid') return 0
-    
+
     const dueDate = new Date(invoice.dueDate)
     const today = new Date()
     const diffTime = today - dueDate
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
+
     return diffDays > 0 ? diffDays : 0
   }
 
@@ -335,7 +340,7 @@ export default function PaymentProcessing() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-slate-800 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4">
             <h2 className="text-xl font-bold mb-4">Process Payment</h2>
-            
+
             {/* Invoice Summary */}
             <div className="bg-white/10 rounded-lg p-4 mb-4">
               <div className="flex justify-between items-center mb-2">
@@ -366,11 +371,10 @@ export default function PaymentProcessing() {
                     <button
                       key={method.value}
                       onClick={() => setPaymentData(prev => ({ ...prev, method: method.value }))}
-                      className={`p-3 rounded-lg border transition-colors ${
-                        paymentData.method === method.value
+                      className={`p-3 rounded-lg border transition-colors ${paymentData.method === method.value
                           ? 'border-cyan-400 bg-cyan-500/20'
                           : 'border-white/20 hover:border-white/40'
-                      }`}
+                        }`}
                     >
                       <Icon className={`w-5 h-5 ${method.color} mx-auto mb-1`} />
                       <span className="text-xs">{method.label}</span>

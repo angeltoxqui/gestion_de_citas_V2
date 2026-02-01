@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../../../hooks/useAuth'
 import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp, query, getDocs, orderBy } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import { 
-  ArrowLeft, 
-  Plus, 
-  Trash2, 
-  Save, 
-  User, 
-  Phone, 
+import { getBusinessCollection, getBusinessDoc } from '../../../utils/firestoreUtils'
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Save,
+  User,
+  Phone,
   Calendar,
   DollarSign,
   FileText,
@@ -24,6 +26,7 @@ import {
 export default function CreateInvoice() {
   const navigate = useNavigate()
   const { id } = useParams() // Get invoice ID if editing
+  const { businessId } = useAuth()
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [patients, setPatients] = useState([])
@@ -32,7 +35,7 @@ export default function CreateInvoice() {
   const [showPatientModal, setShowPatientModal] = useState(false)
   const [patientSearchTerm, setPatientSearchTerm] = useState('')
   const [showQuickServices, setShowQuickServices] = useState(false)
-  
+
   // Predefined common services for quick selection
   const commonServices = [
     { description: 'Consultation Fee', unitPrice: 500, category: 'consultation' },
@@ -51,7 +54,7 @@ export default function CreateInvoice() {
     { description: 'Injection', unitPrice: 150, category: 'procedure' },
     { description: 'Vaccination', unitPrice: 400, category: 'vaccination' }
   ]
-  
+
   const [invoiceData, setInvoiceData] = useState({
     patientId: '',
     patientName: '',
@@ -81,7 +84,7 @@ export default function CreateInvoice() {
   // Fetch patients and services on component mount
   useEffect(() => {
     fetchPatients()
-    
+
     // If we have an ID, we're editing an existing invoice
     if (id) {
       setIsEditing(true)
@@ -106,17 +109,17 @@ export default function CreateInvoice() {
   const fetchPatients = async () => {
     try {
       // Fetch patients from appointments (same as prescription page)
-      const appointmentsRef = collection(db, 'appointments')
+      const appointmentsRef = getBusinessCollection(businessId, 'appointments')
       const appointmentsQuery = query(appointmentsRef, orderBy('createdAt', 'desc'))
       const appointmentsSnapshot = await getDocs(appointmentsQuery)
-      
+
       const uniquePatients = []
       const patientMap = new Map()
-      
+
       appointmentsSnapshot.docs.forEach(doc => {
         const appointment = doc.data()
         const patientKey = `${appointment.patientName}-${appointment.patientPhone}`
-        
+
         if (!patientMap.has(patientKey)) {
           patientMap.set(patientKey, {
             id: patientKey,
@@ -131,7 +134,7 @@ export default function CreateInvoice() {
           uniquePatients.push(patientMap.get(patientKey))
         }
       })
-      
+
       setPatients(uniquePatients)
       setFilteredPatients(uniquePatients)
     } catch (error) {
@@ -150,17 +153,17 @@ export default function CreateInvoice() {
   // Load existing invoice data for editing
   const loadInvoiceData = useCallback(async () => {
     try {
-      const invoiceDoc = await getDoc(doc(db, 'invoices', id))
+      const invoiceDoc = await getDoc(getBusinessDoc(businessId, 'invoices', id))
       if (invoiceDoc.exists()) {
         const invoiceData = invoiceDoc.data()
-        
+
         // Set invoice data
         setInvoiceData({
           ...invoiceData,
           invoiceDate: invoiceData.invoiceDate ? new Date(invoiceData.invoiceDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           dueDate: invoiceData.dueDate ? new Date(invoiceData.dueDate).toISOString().split('T')[0] : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         })
-        
+
         // Set selected patient
         if (invoiceData.patientId) {
           setSelectedPatient({
@@ -215,12 +218,12 @@ export default function CreateInvoice() {
       unitPrice: service.unitPrice,
       amount: service.unitPrice
     }
-    
+
     setInvoiceData(prev => ({
       ...prev,
       items: [...prev.items, newItem]
     }))
-    
+
     setShowQuickServices(false)
   }
 
@@ -233,7 +236,7 @@ export default function CreateInvoice() {
       unitPrice: service.unitPrice,
       amount: service.unitPrice
     }))
-    
+
     setInvoiceData(prev => ({
       ...prev,
       items: [...prev.items, ...newItems]
@@ -248,12 +251,12 @@ export default function CreateInvoice() {
       { description: 'Blood Test', unitPrice: 400, quantity: 1 },
       { description: 'Medicine Dispensing', unitPrice: 200, quantity: 1 }
     ]
-    
+
     const newItems = appointmentServices.map(service => ({
       ...service,
       amount: service.unitPrice * service.quantity
     }))
-    
+
     setInvoiceData(prev => ({
       ...prev,
       items: newItems
@@ -264,14 +267,14 @@ export default function CreateInvoice() {
   const handleItemChange = (index, field, value) => {
     const newItems = [...invoiceData.items]
     newItems[index] = { ...newItems[index], [field]: value }
-    
+
     // Calculate amount for this item
     if (field === 'quantity' || field === 'unitPrice') {
       const quantity = field === 'quantity' ? value : newItems[index].quantity
       const unitPrice = field === 'unitPrice' ? value : newItems[index].unitPrice
       newItems[index].amount = quantity * unitPrice
     }
-    
+
     setInvoiceData(prev => ({ ...prev, items: newItems }))
   }
 
@@ -315,7 +318,7 @@ export default function CreateInvoice() {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!invoiceData.patientName || !invoiceData.patientPhone) {
       alert('Please select a patient')
       return
@@ -334,13 +337,13 @@ export default function CreateInvoice() {
           ...invoiceData,
           updatedAt: serverTimestamp()
         }
-        
-        await updateDoc(doc(db, 'invoices', id), invoiceToUpdate)
+
+        await updateDoc(getBusinessDoc(businessId, 'invoices', id), invoiceToUpdate)
         alert('Invoice updated successfully!')
       } else {
         // Create new invoice
         const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        
+
         const invoiceToSave = {
           ...invoiceData,
           invoiceNumber,
@@ -348,10 +351,10 @@ export default function CreateInvoice() {
           updatedAt: serverTimestamp()
         }
 
-        await addDoc(collection(db, 'invoices'), invoiceToSave)
+        await addDoc(getBusinessCollection(businessId, 'invoices'), invoiceToSave)
         alert('Invoice created successfully!')
       }
-      
+
       navigate('/receptionist/billing')
     } catch (error) {
       console.error('Error saving invoice:', error)
@@ -393,7 +396,7 @@ export default function CreateInvoice() {
               <User className="w-5 h-5 text-cyan-400" />
               <span>Patient Information</span>
             </h2>
-            
+
             {/* Patient Selection */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -419,7 +422,7 @@ export default function CreateInvoice() {
                   </button>
                 )}
               </div>
-              
+
               {/* Selected Patient Display */}
               {selectedPatient && (
                 <div className="mt-4 p-4 bg-white/10 rounded-lg border border-white/20">
@@ -507,7 +510,7 @@ export default function CreateInvoice() {
               <Calendar className="w-5 h-5 text-purple-400" />
               <span>Invoice Details</span>
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -714,7 +717,7 @@ export default function CreateInvoice() {
           {/* Invoice Summary */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
             <h2 className="text-lg font-semibold mb-4">Invoice Summary</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>

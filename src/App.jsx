@@ -14,7 +14,13 @@ import ProtectedRoute from './components/ProtectedRoute'
 import DoctorPrescriptions from './pages/doctor/prescriptions/Prescriptions'
 import CreatePrescription from './pages/doctor/prescriptions/CreatePrescription'
 import ViewPrescription from './pages/doctor/prescriptions/ViewPrescription'
-import Medicines from './pages/doctor/prescriptions/Medicines'
+
+// Doctor Services
+import ServiceCatalog from './pages/doctor/services/ServiceCatalog'
+
+// Doctor Settings
+import BusinessSettings from './pages/doctor/settings/BusinessSettings'
+import TeamManagement from './pages/doctor/settings/TeamManagement'
 
 // Receptionist Prescription Pages
 import ReceptionistPrescriptions from './pages/receptionist/prescriptions/Prescriptions'
@@ -31,6 +37,14 @@ import PaymentProcessing from './pages/receptionist/billing/PaymentProcessing'
 import PaymentHistory from './pages/receptionist/billing/PaymentHistory'
 import InvoicePdfGenerator from './pages/receptionist/billing/InvoicePdfGenerator'
 import Reports from './pages/receptionist/billing/Reports'
+import Analytics from './pages/receptionist/billing/Analytics'
+
+// Public Pages
+import PublicBooking from './pages/public/PublicBooking'
+
+// Receptionist Client CRM
+import ClientList from './pages/receptionist/clients/ClientList'
+import ClientProfile from './pages/receptionist/clients/ClientProfile'
 
 function App() {
   return (
@@ -39,8 +53,12 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/signup/:role" element={<Signup />} />
+      <Route path="/queue/:businessId" element={<TokenDisplay />} />
+      <Route path="/book/:businessId" element={<PublicBooking />} />
+      {/* Legacy routes for backwards compatibility */}
       <Route path="/queue" element={<TokenDisplay />} />
-      
+      <Route path="/reserva-test" element={<PublicBooking />} />
+
       {/* Doctor Routes */}
       <Route path="/doctor" element={
         <ProtectedRoute requiredRole="doctor">
@@ -57,7 +75,7 @@ function App() {
           <TokenQueue />
         </ProtectedRoute>
       } />
-      
+
       {/* Doctor Prescription Routes */}
       <Route path="/doctor/prescriptions" element={
         <ProtectedRoute requiredRole="doctor">
@@ -84,12 +102,22 @@ function App() {
           <CreatePrescription />
         </ProtectedRoute>
       } />
-      <Route path="/doctor/prescriptions/medicines" element={
+      <Route path="/doctor/services" element={
         <ProtectedRoute requiredRole="doctor">
-          <Medicines />
+          <ServiceCatalog />
         </ProtectedRoute>
       } />
-      
+      <Route path="/doctor/settings" element={
+        <ProtectedRoute requiredRole="doctor">
+          <BusinessSettings />
+        </ProtectedRoute>
+      } />
+      <Route path="/doctor/team" element={
+        <ProtectedRoute requiredRole="doctor">
+          <TeamManagement />
+        </ProtectedRoute>
+      } />
+
       {/* Receptionist Routes */}
       <Route path="/receptionist" element={
         <ProtectedRoute requiredRole="receptionist">
@@ -106,7 +134,7 @@ function App() {
           <TokenManagement />
         </ProtectedRoute>
       } />
-      
+
       {/* Receptionist Prescription Routes */}
       <Route path="/receptionist/prescriptions" element={
         <ProtectedRoute requiredRole="receptionist">
@@ -118,7 +146,7 @@ function App() {
           <ReceptionistViewPrescription />
         </ProtectedRoute>
       } />
-      
+
       {/* Receptionist Billing Routes */}
       <Route path="/receptionist/billing" element={
         <ProtectedRoute requiredRole="receptionist">
@@ -163,6 +191,23 @@ function App() {
       <Route path="/receptionist/billing/reports" element={
         <ProtectedRoute requiredRole="receptionist">
           <Reports />
+        </ProtectedRoute>
+      } />
+      <Route path="/receptionist/billing/analytics" element={
+        <ProtectedRoute requiredRole="receptionist">
+          <Analytics />
+        </ProtectedRoute>
+      } />
+
+      {/* Receptionist Client CRM Routes */}
+      <Route path="/receptionist/clients" element={
+        <ProtectedRoute requiredRole="receptionist">
+          <ClientList />
+        </ProtectedRoute>
+      } />
+      <Route path="/receptionist/clients/:clientId" element={
+        <ProtectedRoute requiredRole="receptionist">
+          <ClientProfile />
         </ProtectedRoute>
       } />
 

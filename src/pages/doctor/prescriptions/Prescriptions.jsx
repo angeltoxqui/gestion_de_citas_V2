@@ -3,12 +3,12 @@ import { useAuth } from '../../../hooks/useAuth'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import LogoutButton from '../../../components/LogoutButton'
-import { 
-  User, 
-  Calendar, 
-  Clock, 
-  Phone, 
-  Mail, 
+import {
+  User,
+  Calendar,
+  Clock,
+  Phone,
+  Mail,
   Plus,
   Search,
   Filter,
@@ -22,11 +22,12 @@ import {
   CalendarRange,
   CalendarCheck
 } from 'lucide-react'
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore'
+import { onSnapshot, query, orderBy, deleteDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+import { getBusinessCollection, getBusinessDoc } from '../../../utils/firestoreUtils'
 
 export default function Prescriptions() {
-  const { currentUser } = useAuth()
+  const { currentUser, businessId } = useAuth()
   const [prescriptions, setPrescriptions] = useState([])
   const [filteredPrescriptions, setFilteredPrescriptions] = useState([])
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -37,55 +38,55 @@ export default function Prescriptions() {
 
   // Fetch prescriptions for the logged-in doctor
   useEffect(() => {
-    if (!currentUser) return
+    if (!currentUser || !businessId) return
 
     setLoading(true)
-    
+
     // Fetch all prescriptions and filter by doctor
-    const prescriptionsRef = collection(db, 'prescriptions')
+    const prescriptionsRef = getBusinessCollection(businessId, 'prescriptions')
     const q = query(prescriptionsRef, orderBy('createdAt', 'desc'))
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const allPrescriptions = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }))
-      
+
       // Filter prescriptions for this doctor
       const doctorPrescriptions = allPrescriptions.filter(prescription => {
         const prescriptionDoctorName = prescription.doctorName || ''
         const currentDoctorName = currentUser.displayName || ''
-        
+
         // Try exact match first
         if (prescriptionDoctorName === currentDoctorName) {
           return true
         }
-        
+
         // Try case-insensitive match
         if (prescriptionDoctorName.toLowerCase() === currentDoctorName.toLowerCase()) {
           return true
         }
-        
+
         // Try matching without "Dr." prefix
         const cleanPrescriptionName = prescriptionDoctorName.replace(/^Dr\.\s*/i, '').trim()
         const cleanCurrentName = currentDoctorName.replace(/^Dr\.\s*/i, '').trim()
         if (cleanPrescriptionName === cleanCurrentName) {
           return true
         }
-        
+
         // Try matching with "Dr." prefix
         const withDrPrescriptionName = prescriptionDoctorName.startsWith('Dr.') ? prescriptionDoctorName : `Dr. ${prescriptionDoctorName}`
         const withDrCurrentName = currentDoctorName.startsWith('Dr.') ? currentDoctorName : `Dr. ${currentDoctorName}`
         if (withDrPrescriptionName === withDrCurrentName) {
           return true
         }
-        
+
         return false
       })
-      
+
       setPrescriptions(doctorPrescriptions)
       setLoading(false)
-      
+
       if (doctorPrescriptions.length > 0) {
         toast.success(`Loaded ${doctorPrescriptions.length} prescriptions`)
       } else {
@@ -98,7 +99,7 @@ export default function Prescriptions() {
     })
 
     return () => unsubscribe()
-  }, [currentUser])
+  }, [currentUser, businessId])
 
   useEffect(() => {
     let filtered = prescriptions
@@ -126,7 +127,7 @@ export default function Prescriptions() {
 
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(prescription => 
+      filtered = filtered.filter(prescription =>
         prescription.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         prescription.diagnosis.toLowerCase().includes(searchTerm.toLowerCase())
       )
@@ -143,7 +144,7 @@ export default function Prescriptions() {
   const handleDeletePrescription = async (prescriptionId) => {
     if (window.confirm('Are you sure you want to delete this prescription? This action cannot be undone.')) {
       try {
-        await deleteDoc(doc(db, 'prescriptions', prescriptionId))
+        await deleteDoc(getBusinessDoc(businessId, 'prescriptions', prescriptionId))
         toast.success('Prescription deleted successfully!')
       } catch (error) {
         console.error('Error deleting prescription:', error)
@@ -180,7 +181,7 @@ export default function Prescriptions() {
       <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <Link 
+            <Link
               to="/doctor"
               className="flex items-center space-x-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors"
             >
@@ -230,48 +231,44 @@ export default function Prescriptions() {
                 className="pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-400 focus:border-blue-400 focus:outline-none"
               />
             </div>
-            
+
             <div className="flex space-x-2">
               <button
                 onClick={() => setViewMode('today')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-                  viewMode === 'today' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${viewMode === 'today'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white/5 text-slate-300 hover:bg-white/10'
-                }`}
+                  }`}
               >
                 <CalendarDays className="w-4 h-4" />
                 <span>Today</span>
               </button>
               <button
                 onClick={() => setViewMode('week')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-                  viewMode === 'week' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${viewMode === 'week'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white/5 text-slate-300 hover:bg-white/10'
-                }`}
+                  }`}
               >
                 <CalendarRange className="w-4 h-4" />
                 <span>Week</span>
               </button>
               <button
                 onClick={() => setViewMode('month')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-                  viewMode === 'month' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${viewMode === 'month'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white/5 text-slate-300 hover:bg-white/10'
-                }`}
+                  }`}
               >
                 <CalendarCheck className="w-4 h-4" />
                 <span>Month</span>
               </button>
               <button
                 onClick={() => setViewMode('all')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-                  viewMode === 'all' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${viewMode === 'all'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white/5 text-slate-300 hover:bg-white/10'
-                }`}
+                  }`}
               >
                 <FileText className="w-4 h-4" />
                 <span>All</span>
@@ -290,7 +287,7 @@ export default function Prescriptions() {
               <option value="pending">Pending</option>
             </select>
           </div>
-          
+
           <input
             type="date"
             value={selectedDate}
@@ -305,7 +302,7 @@ export default function Prescriptions() {
             <FileText className="w-5 h-5 text-green-400" />
             <span>Today's Prescriptions ({todayPrescriptions.length})</span>
           </h2>
-          
+
           {loading ? (
             <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto"></div>
@@ -332,7 +329,7 @@ export default function Prescriptions() {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3 mb-4">
                     <div className="flex items-center space-x-2">
                       <Calendar className="w-4 h-4 text-slate-400" />
@@ -347,14 +344,14 @@ export default function Prescriptions() {
                       <span className="text-slate-300">{prescription.patientEmail}</span>
                     </div>
                   </div>
-                  
+
                   {prescription.diagnosis && (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-300 mb-1">Diagnosis:</h4>
                       <p className="text-sm text-slate-400">{prescription.diagnosis}</p>
                     </div>
                   )}
-                  
+
                   <div className="mb-4">
                     <h4 className="text-sm font-medium text-slate-300 mb-1">Medicines ({prescription.medicines?.length || 0}):</h4>
                     <div className="space-y-1">
@@ -368,7 +365,7 @@ export default function Prescriptions() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="flex space-x-2">
                     <Link
                       to={`/doctor/prescriptions/view/${prescription.id}`}
@@ -403,7 +400,7 @@ export default function Prescriptions() {
               <FileText className="w-5 h-5 text-blue-400" />
               <span>All Prescriptions ({filteredPrescriptions.length})</span>
             </h2>
-            
+
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
               <div className="overflow-x-auto">
                 <table className="w-full">

@@ -3,12 +3,12 @@ import { useAuth } from '../../../hooks/useAuth'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import LogoutButton from '../../../components/LogoutButton'
-import { 
-  Hash, 
-  Calendar, 
-  Clock, 
-  Phone, 
-  Mail, 
+import {
+  Hash,
+  Calendar,
+  Clock,
+  Phone,
+  Mail,
   CheckCircle,
   AlertCircle,
   Clock as ClockIcon,
@@ -17,15 +17,16 @@ import {
   Play,
   Check
 } from 'lucide-react'
-import { collection, onSnapshot, query, where, updateDoc, doc, getDoc } from 'firebase/firestore'
+import { onSnapshot, query, where, updateDoc, doc, getDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+import { getBusinessCollection, getBusinessDoc } from '../../../utils/firestoreUtils'
 
 export default function TokenQueue() {
-  const { currentUser } = useAuth()
+  const { currentUser, businessId } = useAuth()
   const [appointments, setAppointments] = useState([])
   const [filteredAppointments, setFilteredAppointments] = useState([])
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-  
+
 
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -42,7 +43,7 @@ export default function TokenQueue() {
       try {
         const userDocRef = doc(db, 'staffData', currentUser.uid)
         const userDoc = await getDoc(userDocRef)
-        
+
         if (userDoc.exists()) {
           const userData = userDoc.data()
           const name = userData.fullName || currentUser.displayName || 'Unknown Doctor'
@@ -60,29 +61,29 @@ export default function TokenQueue() {
     fetchDoctorName()
   }, [currentUser])
 
-    // Fetch appointments for the selected date and doctor
+  // Fetch appointments for the selected date and doctor
   useEffect(() => {
-    if (!selectedDate || !doctorName) {
+    if (!selectedDate || !doctorName || !businessId) {
       return
     }
 
     setLoading(true)
     setError('')
-    
+
     try {
-      const appointmentsRef = collection(db, 'appointments')
+      const appointmentsRef = getBusinessCollection(businessId, 'appointments')
       const q = query(
-        appointmentsRef, 
+        appointmentsRef,
         where('appointmentDate', '==', selectedDate),
         where('doctorName', '==', doctorName)
       )
-      
+
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const appointmentsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }))
-        
+
         // Sort by token number if available, otherwise by creation time
         const sortedAppointments = appointmentsData.sort((a, b) => {
           if (a.tokenNumber && b.tokenNumber) {
@@ -95,16 +96,16 @@ export default function TokenQueue() {
           const dateB = new Date(b.createdAt || 0)
           return dateA - dateB
         })
-        
+
         setAppointments(sortedAppointments)
         setFilteredAppointments(sortedAppointments)
-        
+
         // Set current token (first token_generated or in_progress)
-        const current = sortedAppointments.find(apt => 
+        const current = sortedAppointments.find(apt =>
           apt.status === 'token_generated' || apt.status === 'in_progress'
         )
         setCurrentToken(current)
-        
+
         setLoading(false)
       }, (error) => {
         console.error('Error fetching appointments:', error)
@@ -120,7 +121,7 @@ export default function TokenQueue() {
       setLoading(false)
       toast.error('Error loading appointments')
     }
-  }, [selectedDate, doctorName])
+  }, [selectedDate, doctorName, businessId])
 
 
 
@@ -146,12 +147,12 @@ export default function TokenQueue() {
   // Update appointment status
   const updateAppointmentStatus = async (appointmentId, newStatus) => {
     try {
-      const appointmentRef = doc(db, 'appointments', appointmentId)
+      const appointmentRef = getBusinessDoc(businessId, 'appointments', appointmentId)
       await updateDoc(appointmentRef, {
         status: newStatus,
         updatedAt: new Date().toISOString()
       })
-      
+
       toast.success(`Appointment status updated to ${newStatus}`)
     } catch (error) {
       console.error('Error updating appointment status:', error)
@@ -199,11 +200,11 @@ export default function TokenQueue() {
   // Get today's date in readable format
   const getTodayDisplay = () => {
     const today = new Date()
-    return today.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return today.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     })
   }
 
@@ -227,7 +228,7 @@ export default function TokenQueue() {
       <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <Link 
+            <Link
               to="/doctor"
               className="flex items-center space-x-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors"
             >
@@ -258,7 +259,7 @@ export default function TokenQueue() {
           </div>
         )}
 
-        
+
 
 
 
@@ -278,7 +279,7 @@ export default function TokenQueue() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 {currentToken.status === 'in_progress' && (
                   <button
@@ -289,7 +290,7 @@ export default function TokenQueue() {
                     <span>Complete Consultation</span>
                   </button>
                 )}
-                
+
                 <button
                   onClick={callNextPatient}
                   disabled={queueStats.waiting === 0}
@@ -310,7 +311,7 @@ export default function TokenQueue() {
               <h2 className="text-lg font-semibold mb-2">Today's Queue</h2>
               <p className="text-slate-400">{getTodayDisplay()}</p>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <input
                 type="date"
@@ -318,22 +319,22 @@ export default function TokenQueue() {
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-blue-400 focus:outline-none"
               />
-              
+
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-400">{queueStats.total}</div>
                 <div className="text-sm text-slate-400">Total Tokens</div>
               </div>
-              
+
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-400">{queueStats.waiting}</div>
                 <div className="text-sm text-slate-400">Waiting</div>
               </div>
-              
+
               <div className="text-center">
                 <div className="text-2xl font-bold text-yellow-400">{queueStats.inProgress}</div>
                 <div className="text-sm text-slate-400">In Progress</div>
               </div>
-              
+
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">{queueStats.completed}</div>
                 <div className="text-sm text-slate-400">Completed</div>
@@ -357,7 +358,7 @@ export default function TokenQueue() {
                 />
               </div>
             </div>
-            
+
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -385,8 +386,8 @@ export default function TokenQueue() {
             <div className="p-8 text-center">
               <div className="text-slate-400 text-lg mb-2">No patients in queue</div>
               <div className="text-slate-500 text-sm">
-                {searchTerm || filterStatus !== 'all' 
-                  ? 'Try adjusting your search or filters.' 
+                {searchTerm || filterStatus !== 'all'
+                  ? 'Try adjusting your search or filters.'
                   : 'No appointments scheduled for the selected date.'}
               </div>
             </div>
@@ -408,20 +409,18 @@ export default function TokenQueue() {
                     const statusInfo = getStatusInfo(appointment.status)
                     const StatusIcon = statusInfo.icon
                     const isCurrentPatient = currentToken && currentToken.id === appointment.id
-                    
+
                     return (
-                      <tr 
-                        key={appointment.id} 
-                        className={`hover:bg-white/5 transition-colors ${
-                          isCurrentPatient ? 'bg-blue-500/10 border-l-4 border-l-blue-400' : ''
-                        }`}
+                      <tr
+                        key={appointment.id}
+                        className={`hover:bg-white/5 transition-colors ${isCurrentPatient ? 'bg-blue-500/10 border-l-4 border-l-blue-400' : ''
+                          }`}
                       >
                         <td className="px-6 py-4">
                           {appointment.tokenNumber ? (
                             <div className="flex items-center space-x-2">
-                              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                                isCurrentPatient ? 'bg-blue-500/30' : 'bg-blue-500/20'
-                              }`}>
+                              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isCurrentPatient ? 'bg-blue-500/30' : 'bg-blue-500/20'
+                                }`}>
                                 <span className="text-xl font-bold text-blue-400">{appointment.tokenNumber}</span>
                               </div>
                               {isCurrentPatient && (
@@ -434,7 +433,7 @@ export default function TokenQueue() {
                             <div className="text-slate-400">-</div>
                           )}
                         </td>
-                        
+
                         <td className="px-6 py-4">
                           <div>
                             <div className="font-medium text-white">{appointment.patientName}</div>
@@ -443,7 +442,7 @@ export default function TokenQueue() {
                             </div>
                           </div>
                         </td>
-                        
+
                         <td className="px-6 py-4">
                           <div className="space-y-1">
                             <div className="flex items-center space-x-2 text-sm">
@@ -458,7 +457,7 @@ export default function TokenQueue() {
                             )}
                           </div>
                         </td>
-                        
+
                         <td className="px-6 py-4">
                           <div className="space-y-1">
                             <div className="flex items-center space-x-2 text-sm">
@@ -471,14 +470,14 @@ export default function TokenQueue() {
                             </div>
                           </div>
                         </td>
-                        
+
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
                             <StatusIcon className="w-3 h-3 mr-1" />
                             {appointment.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </span>
                         </td>
-                        
+
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-2">
                             {appointment.status === 'token_generated' && (
@@ -490,7 +489,7 @@ export default function TokenQueue() {
                                 Start
                               </button>
                             )}
-                            
+
                             {appointment.status === 'in_progress' && (
                               <button
                                 onClick={() => updateAppointmentStatus(appointment.id, 'completed')}
@@ -500,7 +499,7 @@ export default function TokenQueue() {
                                 Complete
                               </button>
                             )}
-                            
+
                             <Link
                               to={`/doctor/prescriptions/create/${appointment.id}`}
                               className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors"

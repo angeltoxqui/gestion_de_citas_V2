@@ -3,12 +3,12 @@ import { useAuth } from '../../../hooks/useAuth'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import LogoutButton from '../../../components/LogoutButton'
-import { 
-  User, 
-  Calendar, 
-  Clock, 
-  Phone, 
-  Mail, 
+import {
+  User,
+  Calendar,
+  Clock,
+  Phone,
+  Mail,
   Search,
   Filter,
   FileText,
@@ -27,10 +27,11 @@ import {
 } from 'lucide-react'
 import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+import { getBusinessCollection } from '../../../utils/firestoreUtils'
 import { downloadPrescriptionPDF } from './PrescriptionPdfGenerator'
 
 export default function ReceptionistPrescriptions() {
-  const { currentUser } = useAuth()
+  const { currentUser, businessId } = useAuth()
   const [prescriptions, setPrescriptions] = useState([])
   const [filteredPrescriptions, setFilteredPrescriptions] = useState([])
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -43,13 +44,13 @@ export default function ReceptionistPrescriptions() {
 
   // Fetch prescriptions
   useEffect(() => {
-    if (!currentUser) return
+    if (!currentUser || !businessId) return
 
     setLoading(true)
-    
-    const prescriptionsRef = collection(db, 'prescriptions')
+
+    const prescriptionsRef = getBusinessCollection(businessId, 'prescriptions')
     const q = query(prescriptionsRef, orderBy('createdAt', 'desc'))
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const prescriptionsData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -57,7 +58,7 @@ export default function ReceptionistPrescriptions() {
       }))
       setPrescriptions(prescriptionsData)
       setLoading(false)
-      
+
       if (prescriptionsData.length > 0) {
         toast.success(`Loaded ${prescriptionsData.length} prescriptions`)
       } else {
@@ -70,7 +71,7 @@ export default function ReceptionistPrescriptions() {
     })
 
     return () => unsubscribe()
-  }, [currentUser])
+  }, [currentUser, businessId])
 
   // Fetch doctors
   useEffect(() => {
@@ -78,7 +79,7 @@ export default function ReceptionistPrescriptions() {
       try {
         const staffRef = collection(db, 'staffData')
         const staffQuery = query(staffRef, where('role', '==', 'doctor'))
-        
+
         const unsubscribe = onSnapshot(staffQuery, (snapshot) => {
           const doctorsData = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -122,7 +123,7 @@ export default function ReceptionistPrescriptions() {
 
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(prescription => 
+      filtered = filtered.filter(prescription =>
         prescription.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         prescription.doctorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         prescription.diagnosis.toLowerCase().includes(searchTerm.toLowerCase())
@@ -165,7 +166,7 @@ export default function ReceptionistPrescriptions() {
     try {
       let successCount = 0
       let errorCount = 0
-      
+
       filteredPrescriptions.forEach((prescription, index) => {
         setTimeout(() => {
           try {
@@ -181,9 +182,9 @@ export default function ReceptionistPrescriptions() {
           }
         }, index * 1000) // Delay each download by 1 second
       })
-      
+
       toast.success(`Started downloading ${filteredPrescriptions.length} prescriptions`)
-      
+
       // Show final result after all downloads
       setTimeout(() => {
         if (errorCount === 0) {
@@ -192,7 +193,7 @@ export default function ReceptionistPrescriptions() {
           toast.error(`Downloaded ${successCount} prescriptions, failed ${errorCount}`)
         }
       }, (filteredPrescriptions.length + 2) * 1000)
-      
+
     } catch (error) {
       console.error('Bulk download error:', error)
       toast.error('Error starting bulk download')
@@ -227,7 +228,7 @@ export default function ReceptionistPrescriptions() {
       <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <Link 
+            <Link
               to="/receptionist"
               className="flex items-center space-x-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors"
             >
@@ -271,48 +272,44 @@ export default function ReceptionistPrescriptions() {
                 className="pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-400 focus:border-blue-400 focus:outline-none"
               />
             </div>
-            
+
             <div className="flex space-x-2">
               <button
                 onClick={() => setViewMode('today')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-                  viewMode === 'today' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${viewMode === 'today'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white/5 text-slate-300 hover:bg-white/10'
-                }`}
+                  }`}
               >
                 <CalendarDays className="w-4 h-4" />
                 <span>Today</span>
               </button>
               <button
                 onClick={() => setViewMode('week')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-                  viewMode === 'week' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${viewMode === 'week'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white/5 text-slate-300 hover:bg-white/10'
-                }`}
+                  }`}
               >
                 <CalendarRange className="w-4 h-4" />
                 <span>Week</span>
               </button>
               <button
                 onClick={() => setViewMode('month')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-                  viewMode === 'month' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${viewMode === 'month'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white/5 text-slate-300 hover:bg-white/10'
-                }`}
+                  }`}
               >
                 <CalendarCheck className="w-4 h-4" />
                 <span>Month</span>
               </button>
               <button
                 onClick={() => setViewMode('all')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-                  viewMode === 'all' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${viewMode === 'all'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white/5 text-slate-300 hover:bg-white/10'
-                }`}
+                  }`}
               >
                 <FileText className="w-4 h-4" />
                 <span>All</span>
@@ -334,7 +331,7 @@ export default function ReceptionistPrescriptions() {
             <select
               value={filterDoctor}
               onChange={(e) => setFilterDoctor(e.target.value)}
-                className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-black focus:border-blue-400 focus:outline-none"
+              className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-black focus:border-blue-400 focus:outline-none"
             >
               <option value="all">All Doctors</option>
               {doctors.map(doctor => (
@@ -344,7 +341,7 @@ export default function ReceptionistPrescriptions() {
               ))}
             </select>
           </div>
-          
+
           <input
             type="date"
             value={selectedDate}
@@ -359,7 +356,7 @@ export default function ReceptionistPrescriptions() {
             <FileText className="w-5 h-5 text-green-400" />
             <span>Today's Prescriptions ({todayPrescriptions.length})</span>
           </h2>
-          
+
           {loading ? (
             <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto"></div>
@@ -386,7 +383,7 @@ export default function ReceptionistPrescriptions() {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3 mb-4">
                     <div className="flex items-center space-x-2">
                       <Calendar className="w-4 h-4 text-slate-400" />
@@ -405,14 +402,14 @@ export default function ReceptionistPrescriptions() {
                       <span className="text-slate-300">{prescription.patientEmail}</span>
                     </div>
                   </div>
-                  
+
                   {prescription.diagnosis && (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-300 mb-1">Diagnosis:</h4>
                       <p className="text-sm text-slate-400">{prescription.diagnosis}</p>
                     </div>
                   )}
-                  
+
                   <div className="mb-4">
                     <h4 className="text-sm font-medium text-slate-300 mb-1">Medicines ({prescription.medicines?.length || 0}):</h4>
                     <div className="space-y-1">
@@ -426,7 +423,7 @@ export default function ReceptionistPrescriptions() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="flex space-x-2">
                     <Link
                       to={`/receptionist/prescriptions/view/${prescription.id}`}
@@ -461,7 +458,7 @@ export default function ReceptionistPrescriptions() {
               <FileText className="w-5 h-5 text-blue-400" />
               <span>All Prescriptions ({filteredPrescriptions.length})</span>
             </h2>
-            
+
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -503,7 +500,7 @@ export default function ReceptionistPrescriptions() {
                             >
                               View
                             </Link>
-                            
+
                             <button
                               onClick={() => handleDownloadPDF(prescription)}
                               className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs transition-colors"

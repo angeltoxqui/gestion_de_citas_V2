@@ -53,10 +53,10 @@ export default function Home() {
 
       <main className="container" role="main" aria-label="Welcome screen">
         <div className="mark" aria-hidden="true"></div>
-        <h1>Welcome to {appName}</h1>
-        <p>Getting things ready for you. Redirecting to login shortly…</p>
+        <h1>Bienvenido a {appName}</h1>
+        <p>Preparando todo para ti. Redirigiendo al inicio de sesión en breve…</p>
         <div className="loader" aria-hidden="true"></div>
-        <div className="hint" aria-hidden="true">You will be redirected in about 5 seconds.</div>
+        <div className="hint" aria-hidden="true">Serás redirigido en aproximadamente 5 segundos.</div>
       </main>
     </div>
   )

@@ -6,7 +6,7 @@ import {
   signInUser,
   resetUserPassword,
   resendUserVerificationEmail,
-  fetchUserRoleFromFirestore
+  fetchUserDataFromFirestore
 } from '../utils/authUtils'
 
 const AuthContext = createContext()
@@ -15,10 +15,11 @@ export { AuthContext }
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null)
   const [userRole, setUserRole] = useState(null)
+  const [businessId, setBusinessId] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  async function signup(email, password, fullName, role) {
-    return await createUserWithRole(email, password, fullName, role)
+  async function signup(email, password, fullName, role, businessName) {
+    return await createUserWithRole(email, password, fullName, role, businessName)
   }
 
   async function login(email, password) {
@@ -39,13 +40,11 @@ export function AuthProvider({ children }) {
     }
   }
 
-
-
-  async function fetchUserRole(uid) {
+  async function fetchUserData(uid) {
     try {
-      return await fetchUserRoleFromFirestore(uid)
+      return await fetchUserDataFromFirestore(uid)
     } catch (error) {
-      console.error('Error fetching user role:', error)
+      console.error('Error fetching user data:', error)
       return null
     }
   }
@@ -54,11 +53,13 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUser(user)
-        const role = await fetchUserRole(user.uid)
-        setUserRole(role)
+        const userData = await fetchUserData(user.uid)
+        setUserRole(userData?.role || null)
+        setBusinessId(userData?.businessId || null)
       } else {
         setCurrentUser(null)
         setUserRole(null)
+        setBusinessId(null)
       }
       setLoading(false)
     })
@@ -69,6 +70,7 @@ export function AuthProvider({ children }) {
   const value = {
     currentUser,
     userRole,
+    businessId,
     signup,
     login,
     logout,
@@ -83,3 +85,4 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   )
 }
+

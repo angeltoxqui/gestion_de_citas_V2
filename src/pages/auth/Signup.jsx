@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { FaHospital, FaUserDoctor, FaBellConcierge, FaIdCard, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaStar, FaShieldHalved, FaUserTie } from 'react-icons/fa6'
+import { FaHospital, FaUserDoctor, FaBellConcierge, FaIdCard, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaStar, FaShieldHalved, FaUserTie, FaBuilding } from 'react-icons/fa6'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function Signup() {
@@ -11,6 +11,7 @@ export default function Signup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [selectedRole, setSelectedRole] = useState(initialRole || '')
   const [formData, setFormData] = useState({
+    businessName: '',
     fullName: '',
     email: '',
     password: '',
@@ -18,10 +19,10 @@ export default function Signup() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({})
-  
+
   const roleMeta = {
-    doctor: { title: 'Doctor', icon: FaUserDoctor, description: 'Provide care with streamlined tools for appointments and records' },
-    receptionist: { title: 'Receptionist', icon: FaBellConcierge, description: 'Coordinate patient intake, scheduling, and front-desk operations' }
+    doctor: { title: 'Profesional', icon: FaUserDoctor, description: 'Brinda atención con herramientas optimizadas para citas e historiales' },
+    receptionist: { title: 'Recepcionista', icon: FaBellConcierge, description: 'Coordina la recepción de clientes, agenda y operaciones de mostrador' }
   }
 
   const currentRole = roleMeta[selectedRole] || null
@@ -38,71 +39,75 @@ export default function Signup() {
 
   const validateForm = () => {
     const newErrors = {}
-    
+
     if (!selectedRole) {
-      newErrors.role = 'Please select a professional role'
+      newErrors.role = 'Por favor selecciona un rol profesional'
     }
-    
+
+    if (!formData.businessName.trim()) {
+      newErrors.businessName = 'El nombre del negocio es requerido'
+    }
+
     if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required'
+      newErrors.fullName = 'El nombre completo es requerido'
     }
-    
+
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required'
+      newErrors.email = 'El correo electrónico es requerido'
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address'
+      newErrors.email = 'Por favor ingresa un correo electrónico válido'
     }
-    
+
     if (!formData.password) {
-      newErrors.password = 'Password is required'
+      newErrors.password = 'La contraseña es requerida'
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters'
+      newErrors.password = 'La contraseña debe tener al menos 6 caracteres'
     }
-    
+
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password'
+      newErrors.confirmPassword = 'Por favor confirma tu contraseña'
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match'
+      newErrors.confirmPassword = 'Las contraseñas no coinciden'
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
-    
+
     setIsLoading(true)
-    
+
     try {
       // Use Firebase authentication
-      await signup(formData.email, formData.password, formData.fullName, selectedRole)
-      
+      await signup(formData.email, formData.password, formData.fullName, selectedRole, formData.businessName)
+
       // Redirect to verify email page with role and email data
-      navigate('/verify-email', { 
-        state: { 
-          role: selectedRole, 
+      navigate('/verify-email', {
+        state: {
+          role: selectedRole,
           email: formData.email,
           fullName: formData.fullName
-        } 
+        }
       })
     } catch (error) {
       console.error('Signup error:', error)
       // Handle specific Firebase errors
-      let errorMessage = 'Failed to create account. Please try again.'
-      
+      let errorMessage = 'Error al crear la cuenta. Por favor intenta de nuevo.'
+
       if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'An account with this email already exists.'
+        errorMessage = 'Ya existe una cuenta con este correo electrónico.'
       } else if (error.code === 'auth/weak-password') {
-        errorMessage = 'Password should be at least 6 characters long.'
+        errorMessage = 'La contraseña debe tener al menos 6 caracteres.'
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.'
+        errorMessage = 'Por favor ingresa un correo electrónico válido.'
       }
-      
+
       setErrors(prev => ({ ...prev, general: errorMessage }))
     } finally {
       setIsLoading(false)
@@ -117,10 +122,10 @@ export default function Signup() {
         <div className="absolute top-20 left-20 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute top-40 right-20 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse animation-delay-1000"></div>
         <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-sky-500/20 rounded-full blur-3xl animate-pulse animation-delay-2000"></div>
-        
+
         {/* Grid pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-        
+
         {/* Radial gradient overlay */}
         <div className="absolute inset-0 bg-radial-gradient from-transparent via-slate-900/50 to-slate-900"></div>
       </div>
@@ -134,10 +139,10 @@ export default function Signup() {
               <IconComponent className="w-10 h-10 text-slate-900" />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-sky-400 bg-clip-text text-transparent mb-3">
-              Join Our Team
+              Únete al Equipo
             </h1>
             <p className="text-lg text-slate-300 leading-relaxed">
-              {currentRole ? `Create your ${currentRole.title} account` : 'Choose your role and create your account'}
+              {currentRole ? `Crea tu cuenta de ${currentRole.title}` : 'Elige tu rol y crea tu cuenta'}
             </p>
             {currentRole && (
               <p className="text-sm text-slate-400 mt-2">
@@ -152,48 +157,44 @@ export default function Signup() {
               {/* Professional Role Selection */}
               <div className="space-y-3">
                 <label className="block text-sm font-semibold text-slate-200">
-                  Professional Role
+                  Rol Profesional
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setSelectedRole('doctor')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${
-                      selectedRole === 'doctor'
-                        ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/20'
-                        : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
-                    }`}
+                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${selectedRole === 'doctor'
+                      ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/20'
+                      : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
+                      }`}
                   >
                     <div className="flex flex-col items-center space-y-2">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                        selectedRole === 'doctor'
-                          ? 'bg-blue-400 text-slate-900'
-                          : 'bg-white/10 text-slate-300'
-                      }`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${selectedRole === 'doctor'
+                        ? 'bg-blue-400 text-slate-900'
+                        : 'bg-white/10 text-slate-300'
+                        }`}>
                         <FaUserDoctor className="w-6 h-6" />
                       </div>
-                      <span className="text-sm font-medium">Doctor</span>
+                      <span className="text-sm font-medium">Profesional</span>
                     </div>
                   </button>
-                  
+
                   <button
                     type="button"
                     onClick={() => setSelectedRole('receptionist')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${
-                      selectedRole === 'receptionist'
-                        ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/20'
-                        : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
-                    }`}
+                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${selectedRole === 'receptionist'
+                      ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/20'
+                      : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
+                      }`}
                   >
                     <div className="flex flex-col items-center space-y-2">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                        selectedRole === 'receptionist'
-                          ? 'bg-blue-400 text-slate-900'
-                          : 'bg-white/10 text-slate-300'
-                      }`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${selectedRole === 'receptionist'
+                        ? 'bg-blue-400 text-slate-900'
+                        : 'bg-white/10 text-slate-300'
+                        }`}>
                         <FaBellConcierge className="w-6 h-6" />
                       </div>
-                      <span className="text-sm font-medium">Receptionist</span>
+                      <span className="text-sm font-medium">Recepcionista</span>
                     </div>
                   </button>
                 </div>
@@ -202,26 +203,52 @@ export default function Signup() {
                 )}
               </div>
 
+              {/* Business Name Field */}
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-slate-200">
+                  Nombre del Negocio
+                </label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-400 transition-colors duration-300">
+                    <FaBuilding className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    name="businessName"
+                    placeholder="Ingresa el nombre de tu negocio"
+                    value={formData.businessName}
+                    onChange={handleInputChange}
+                    className={`w-full pl-12 pr-4 py-4 bg-white/5 border-2 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 ${errors.businessName
+                      ? 'border-red-400 focus:border-red-400 focus:bg-red-400/10'
+                      : 'border-white/10 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20'
+                      }`}
+                    required
+                  />
+                </div>
+                {errors.businessName && (
+                  <p className="text-sm text-red-400">{errors.businessName}</p>
+                )}
+              </div>
+
               {/* Full Name Field */}
               <div className="space-y-3">
                 <label className="block text-sm font-semibold text-slate-200">
-                  Full Name
+                  Nombre Completo
                 </label>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-400 transition-colors duration-300">
                     <FaIdCard className="w-4 h-4" />
                   </div>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     name="fullName"
-                    placeholder="Enter your full name"
+                    placeholder="Ingresa tu nombre completo"
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    className={`w-full pl-12 pr-4 py-4 bg-white/5 border-2 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 ${
-                      errors.fullName 
-                        ? 'border-red-400 focus:border-red-400 focus:bg-red-400/10' 
-                        : 'border-white/10 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20'
-                    }`}
+                    className={`w-full pl-12 pr-4 py-4 bg-white/5 border-2 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 ${errors.fullName
+                      ? 'border-red-400 focus:border-red-400 focus:bg-red-400/10'
+                      : 'border-white/10 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20'
+                      }`}
                     required
                   />
                 </div>
@@ -233,23 +260,22 @@ export default function Signup() {
               {/* Email Field */}
               <div className="space-y-3">
                 <label className="block text-sm font-semibold text-slate-200">
-                  Email Address
+                  Correo Electrónico
                 </label>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-400 transition-colors duration-300">
                     <FaEnvelope className="w-4 h-4" />
                   </div>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     name="email"
-                    placeholder="Enter your email address"
+                    placeholder="Ingresa tu correo electrónico"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className={`w-full pl-12 pr-4 py-4 bg-white/5 border-2 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 ${
-                      errors.email 
-                        ? 'border-red-400 focus:border-red-400 focus:bg-red-400/10' 
-                        : 'border-white/10 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20'
-                    }`}
+                    className={`w-full pl-12 pr-4 py-4 bg-white/5 border-2 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 ${errors.email
+                      ? 'border-red-400 focus:border-red-400 focus:bg-red-400/10'
+                      : 'border-white/10 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20'
+                      }`}
                     required
                   />
                 </div>
@@ -261,27 +287,26 @@ export default function Signup() {
               {/* Password Field */}
               <div className="space-y-3">
                 <label className="block text-sm font-semibold text-slate-200">
-                  Password
+                  Contraseña
                 </label>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-400 transition-colors duration-300">
                     <FaLock className="w-4 h-4" />
                   </div>
-                  <input 
+                  <input
                     type={showPassword ? "text" : "password"}
                     name="password"
-                    placeholder="Create a strong password"
+                    placeholder="Crea una contraseña segura"
                     value={formData.password}
                     onChange={handleInputChange}
-                    className={`w-full pl-12 pr-12 py-4 bg-white/5 border-2 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 ${
-                      errors.password 
-                        ? 'border-red-400 focus:border-red-400 focus:bg-red-400/10' 
-                        : 'border-white/10 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20'
-                    }`}
+                    className={`w-full pl-12 pr-12 py-4 bg-white/5 border-2 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 ${errors.password
+                      ? 'border-red-400 focus:border-red-400 focus:bg-red-400/10'
+                      : 'border-white/10 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20'
+                      }`}
                     required
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-400 transition-colors duration-300"
                     onClick={() => setShowPassword(!showPassword)}
                   >
@@ -291,33 +316,32 @@ export default function Signup() {
                 {errors.password && (
                   <p className="text-sm text-red-400">{errors.password}</p>
                 )}
-                <p className="text-xs text-slate-400">Minimum 6 characters required</p>
+                <p className="text-xs text-slate-400">Mínimo 6 caracteres requeridos</p>
               </div>
 
               {/* Confirm Password Field */}
               <div className="space-y-3">
                 <label className="block text-sm font-semibold text-slate-200">
-                  Confirm Password
+                  Confirmar Contraseña
                 </label>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-400 transition-colors duration-300">
                     <FaLock className="w-4 h-4" />
                   </div>
-                  <input 
+                  <input
                     type={showConfirmPassword ? "text" : "password"}
                     name="confirmPassword"
-                    placeholder="Confirm your password"
+                    placeholder="Confirma tu contraseña"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    className={`w-full pl-12 pr-12 py-4 bg-white/5 border-2 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 ${
-                      errors.confirmPassword 
-                        ? 'border-red-400 focus:border-red-400 focus:bg-red-400/10' 
-                        : 'border-white/10 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20'
-                    }`}
+                    className={`w-full pl-12 pr-12 py-4 bg-white/5 border-2 rounded-2xl text-white placeholder-slate-400 outline-none transition-all duration-300 ${errors.confirmPassword
+                      ? 'border-red-400 focus:border-red-400 focus:bg-red-400/10'
+                      : 'border-white/10 focus:border-blue-400 focus:bg-white/10 focus:shadow-lg focus:shadow-blue-400/20'
+                      }`}
                     required
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-400 transition-colors duration-300"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
@@ -330,7 +354,7 @@ export default function Signup() {
               </div>
 
               {/* Submit Button */}
-              <button 
+              <button
                 type="submit"
                 disabled={isLoading}
                 className="w-full py-4 px-6 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed text-slate-900 font-bold text-lg rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:scale-100"
@@ -338,12 +362,12 @@ export default function Signup() {
                 {isLoading ? (
                   <div className="flex items-center justify-center space-x-2">
                     <div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
-                    <span>Creating Account...</span>
+                    <span>Creando Cuenta...</span>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center space-x-2">
                     <FaShieldHalved className="w-5 h-5" />
-                    <span>Create Account</span>
+                    <span>Crear Cuenta</span>
                     <FaArrowRight className="w-4 h-4" />
                   </div>
                 )}
@@ -364,18 +388,18 @@ export default function Signup() {
                 <div className="w-full border-t border-white/10"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white/5 text-slate-400">Already have an account?</span>
+                <span className="px-4 bg-white/5 text-slate-400">¿Ya tienes una cuenta?</span>
               </div>
             </div>
 
             {/* Sign In Link */}
             <div className="text-center">
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className="inline-flex items-center justify-center w-full py-3 px-6 border-2 border-white/20 bg-white/5 hover:border-blue-400/40 hover:bg-blue-400/10 text-white font-medium rounded-2xl transition-all duration-300 hover:shadow-lg hover:shadow-blue-400/20"
               >
                 <FaStar className="w-4 h-4 mr-2" />
-                Sign in here
+                Iniciar sesión aquí
               </Link>
             </div>
           </div>
@@ -383,7 +407,7 @@ export default function Signup() {
           {/* Footer */}
           <div className="text-center mt-8">
             <p className="text-sm text-slate-400">
-              Join our healthcare team and make a difference
+              Únete a nuestro equipo y marca la diferencia
             </p>
           </div>
         </div>

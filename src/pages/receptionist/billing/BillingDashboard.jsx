@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
+import { useAuth } from '../../../hooks/useAuth'
+import { onSnapshot, query, orderBy } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import { 
-  DollarSign, 
-  FileText, 
-  CreditCard, 
-  Banknote, 
-  Globe, 
-  TrendingUp, 
+import { getBusinessCollection } from '../../../utils/firestoreUtils'
+import {
+  DollarSign,
+  FileText,
+  CreditCard,
+  Banknote,
+  Globe,
+  TrendingUp,
   Calendar,
   Plus,
   Eye,
@@ -16,6 +18,7 @@ import {
 } from 'lucide-react'
 
 export default function BillingDashboard() {
+  const { businessId } = useAuth()
   const [stats, setStats] = useState({
     totalInvoices: 0,
     pendingPayments: 0,
@@ -30,41 +33,43 @@ export default function BillingDashboard() {
 
   useEffect(() => {
     const fetchBillingData = async () => {
+      if (!businessId) return
+
       try {
-        // Fetch invoices
-        const invoicesRef = collection(db, 'invoices')
+        // Fetch invoices (multi-tenant)
+        const invoicesRef = getBusinessCollection(businessId, 'invoices')
         const invoicesQuery = query(invoicesRef, orderBy('createdAt', 'desc'))
-        
+
         const unsubscribe = onSnapshot(invoicesQuery, (snapshot) => {
           const invoicesData = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           }))
-          
+
           // Calculate statistics
           const totalInvoices = invoicesData.length
           const pendingPayments = invoicesData.filter(inv => inv.status === 'pending').length
           const totalRevenue = invoicesData.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0)
-          
+
           // Today's revenue
           const today = new Date().toISOString().split('T')[0]
           const todayRevenue = invoicesData
             .filter(inv => inv.createdAt?.toDate?.()?.toISOString?.()?.split('T')[0] === today)
             .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0)
-          
+
           // Payment method breakdown
           const cashPayments = invoicesData
             .filter(inv => inv.paymentMethod === 'cash' && inv.status === 'paid')
             .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0)
-          
+
           const cardPayments = invoicesData
             .filter(inv => inv.paymentMethod === 'card' && inv.status === 'paid')
             .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0)
-          
+
           const onlinePayments = invoicesData
             .filter(inv => inv.paymentMethod === 'online' && inv.status === 'paid')
             .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0)
-          
+
           setStats({
             totalInvoices,
             pendingPayments,
@@ -74,20 +79,20 @@ export default function BillingDashboard() {
             cardPayments,
             onlinePayments
           })
-          
+
           setRecentInvoices(invoicesData.slice(0, 5))
           setLoading(false)
         })
-        
+
         return unsubscribe
       } catch (error) {
         console.error('Error fetching billing data:', error)
         setLoading(false)
       }
     }
-    
+
     fetchBillingData()
-  }, [])
+  }, [businessId])
 
   if (loading) {
     return (
@@ -184,8 +189,8 @@ export default function BillingDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
             <div className="flex items-center space-x-3 mb-4">
-                             <Banknote className="w-6 h-6 text-green-400" />
-               <h3 className="text-lg font-semibold">Cash Payments</h3>
+              <Banknote className="w-6 h-6 text-green-400" />
+              <h3 className="text-lg font-semibold">Cash Payments</h3>
             </div>
             <p className="text-2xl font-bold text-green-400">₹{stats.cashPayments.toLocaleString()}</p>
             <p className="text-sm text-slate-400 mt-2">Total cash received</p>
@@ -265,6 +270,19 @@ export default function BillingDashboard() {
                 </div>
               </div>
             </Link>
+
+            <Link
+              to="/receptionist/billing/analytics"
+              className="bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-400/30 rounded-xl p-4 hover:from-cyan-500/20 hover:to-purple-500/20 transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                <TrendingUp className="w-5 h-5 text-cyan-400" />
+                <div>
+                  <h3 className="font-semibold">Estadísticas</h3>
+                  <p className="text-sm text-slate-400">Dashboard de rentabilidad</p>
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
 
@@ -279,7 +297,7 @@ export default function BillingDashboard() {
               View All →
             </Link>
           </div>
-          
+
           {recentInvoices.length === 0 ? (
             <p className="text-slate-400 text-center py-8">No invoices found</p>
           ) : (
@@ -311,13 +329,12 @@ export default function BillingDashboard() {
                         <span className="font-bold text-green-400">₹{invoice.totalAmount?.toLocaleString()}</span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          invoice.status === 'paid' 
-                            ? 'bg-green-500/20 text-green-400' 
-                            : invoice.status === 'pending'
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${invoice.status === 'paid'
+                          ? 'bg-green-500/20 text-green-400'
+                          : invoice.status === 'pending'
                             ? 'bg-yellow-500/20 text-yellow-400'
                             : 'bg-red-500/20 text-red-400'
-                        }`}>
+                          }`}>
                           {invoice.status?.charAt(0).toUpperCase() + invoice.status?.slice(1)}
                         </span>
                       </td>

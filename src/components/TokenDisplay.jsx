@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, query, where } from 'firebase/firestore'
+import { useParams } from 'react-router-dom'
+import { onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { getBusinessCollection } from '../utils/firestoreUtils'
 import { Hash, Clock, User, AlertCircle } from 'lucide-react'
 
 export default function TokenDisplay() {
+  const { businessId } = useParams()
   const [currentToken, setCurrentToken] = useState(null)
   const [nextToken, setNextToken] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -11,54 +14,69 @@ export default function TokenDisplay() {
 
   useEffect(() => {
     if (!selectedDate) return
+    if (!businessId) {
+      setLoading(false)
+      return
+    }
 
     setLoading(true)
-    const appointmentsRef = collection(db, 'appointments')
+    const appointmentsRef = getBusinessCollection(businessId, 'appointments')
     const q = query(
       appointmentsRef,
       where('appointmentDate', '==', selectedDate),
       where('status', 'in', ['token_generated', 'in_progress'])
     )
-    
-               const unsubscribe = onSnapshot(q, (snapshot) => {
-        const appointmentsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        
-        // Sort by token number
-        const sortedAppointments = appointmentsData.sort((a, b) => {
-          if (a.tokenNumber && b.tokenNumber) {
-            return a.tokenNumber - b.tokenNumber
-          }
-          if (a.tokenNumber) return -1
-          if (b.tokenNumber) return 1
-          return 0
-        })
-        
-        // Find current token (in_progress)
-        const current = sortedAppointments.find(apt => apt.status === 'in_progress')
-        setCurrentToken(current)
-        
-        // Find next token (first token_generated)
-        const next = sortedAppointments.find(apt => apt.status === 'token_generated')
-        setNextToken(next)
-        
-        setLoading(false)
-      }, (error) => {
-        console.error('Error fetching appointments:', error)
-        setLoading(false)
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const appointmentsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+
+      // Sort by token number
+      const sortedAppointments = appointmentsData.sort((a, b) => {
+        if (a.tokenNumber && b.tokenNumber) {
+          return a.tokenNumber - b.tokenNumber
+        }
+        if (a.tokenNumber) return -1
+        if (b.tokenNumber) return 1
+        return 0
       })
 
+      // Find current token (in_progress)
+      const current = sortedAppointments.find(apt => apt.status === 'in_progress')
+      setCurrentToken(current)
+
+      // Find next token (first token_generated)
+      const next = sortedAppointments.find(apt => apt.status === 'token_generated')
+      setNextToken(next)
+
+      setLoading(false)
+    }, (error) => {
+      console.error('Error fetching appointments:', error)
+      setLoading(false)
+    })
+
     return () => unsubscribe()
-  }, [selectedDate])
+  }, [selectedDate, businessId])
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-xl text-slate-400">Loading...</p>
+          <p className="text-xl text-slate-400">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!businessId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+          <p className="text-xl text-slate-400">Por favor accede mediante /queue/{'{businessId}'}</p>
         </div>
       </div>
     )
@@ -76,11 +94,11 @@ export default function TokenDisplay() {
             <h1 className="text-3xl font-bold">Patient Queue</h1>
           </div>
           <p className="text-slate-400">
-            {new Date(selectedDate).toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+            {new Date(selectedDate).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })}
           </p>
         </div>
