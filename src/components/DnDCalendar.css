@@ -1,0 +1,116 @@
+/* Calendar Dark Theme Overrides */
+.calendar-container .rbc-calendar {
+    color: #e2e8f0; /* slate-200 */
+    font-family: inherit;
+}
+
+.rbc-header {
+    padding: 12px;
+    font-weight: 600;
+    color: #94a3b8; /* slate-400 */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rbc-today {
+    background-color: rgba(59, 130, 246, 0.1); /* blue-500/10 */
+}
+
+.rbc-off-range-bg {
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.rbc-time-view, .rbc-month-view {
+    border: none;
+}
+
+.rbc-time-header-content {
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rbc-time-content {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rbc-day-slot .rbc-time-slot {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rbc-timeslot-group {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rbc-day-bg + .rbc-day-bg {
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rbc-time-gutter .rbc-timeslot-group {
+    border: none;
+    color: #64748b; /* slate-500 */
+    font-size: 0.875rem;
+}
+
+.rbc-events-container {
+    margin-right: 0;
+}
+
+.rbc-agenda-view table.rbc-agenda-table {
+    border: none;
+}
+
+.rbc-agenda-view table.rbc-agenda-table tbody > tr > td {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px;
+}
+
+.rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 12px;
+}
+
+.rbc-toolbar button {
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.rbc-toolbar button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.rbc-toolbar button.rbc-active {
+    background-color: #3b82f6; /* blue-500 */
+    border-color: #3b82f6;
+    color: white;
+}
+
+.rbc-toolbar button:focus {
+    outline: none;
+    background-color: #3b82f6;
+}
+
+.rbc-btn-group {
+    gap: 0.5rem;
+}
+
+/* Event overrides */
+.rbc-event {
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.rbc-event-label {
+    display: none;
+}
+
+.rbc-event-content {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}

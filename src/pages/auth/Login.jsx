@@ -1,17 +1,42 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { FaHospital, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaStar, FaShieldHalved } from 'react-icons/fa6'
 import { useAuth } from '../../hooks/useAuth'
-import { fetchUserProfile } from '../../utils/authUtils'
+import { fetchUserRoleFromFirestore } from '../../utils/authUtils'
+import toast from 'react-hot-toast'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, user, loading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Efecto para redirigir si ya hay usuario logueado
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const userRole = user?.role
+    if (!loading && user && userRole) {
+      switch (userRole) {
+        case 'owner':
+        case 'admin':
+          navigate('/doctor/dashboard')
+          break
+        case 'receptionist':
+          navigate('/receptionist/dashboard')
+          break
+        case 'staff':
+        case 'professional':
+        case 'doctor':
+          navigate('/doctor/appointments')
+          break
+        default:
+          navigate('/doctor/appointments')
+      }
+    }
+  }, [user, loading, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -25,13 +50,16 @@ export default function Login() {
 
     try {
       // Use Firebase authentication
-      const user = await login(email, password)
+      const userCredential = await login(email, password)
+      const user = userCredential.user
 
       // Fetch the user's role from Firestore using new unifed 'users' collection logic
-      const userData = await fetchUserProfile(user.uid)
+      const userData = await fetchUserRoleFromFirestore(user.uid)
 
       if (!userData) {
-        throw new Error('Usuario no encontrado en base de datos')
+        toast.error('Error: No se encontró perfil de usuario')
+        setIsLoading(false)
+        return
       }
 
       const userRole = userData.role
@@ -43,20 +71,20 @@ export default function Login() {
           // Owner / Admin -> Full Dashboard
           navigate('/doctor/dashboard')
           break
-        case 'professional':
-        case 'staff':
-        case 'doctor': // Legacy support
-          // Professional -> Personal Agenda
-          navigate('/doctor/appointments')
-          break
         case 'receptionist':
           // Receptionist -> Reception Dashboard
           navigate('/receptionist/dashboard')
           break
+        case 'staff':
+        case 'professional':
+        case 'doctor': // Legacy support
+          // Professional -> Personal Agenda
+          navigate('/doctor/appointments')
+          break
         default:
           // Fallback
           console.warn('Unknown role:', userRole)
-          navigate('/doctor')
+          navigate('/doctor/appointments')
       }
 
     } catch (error) {

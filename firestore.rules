@@ -46,12 +46,36 @@ service cloud.firestore {
 
     // 1. Usuarios (Colección Raíz Unificada)
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || belongsToBusiness(resource.data.businessId));
-      allow write: if isOwner(userId); // El usuario puede editar su propio perfil (o restringir más si se desea)
-      allow create: if isAuthenticated() && request.auth.uid == userId; // Permitir creación al registrarse
+      // READ: Usuario puede leer su propio perfil, o cualquier perfil de su mismo negocio
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        belongsToBusiness(resource.data.businessId)
+      );
+      
+      // CREATE: 
+      // - Usuario puede crear su propio perfil (registro normal)
+      // - Owner puede crear perfiles de equipo (invitaciones)
+      allow create: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        (hasRole(['owner']) && request.resource.data.businessId == getUserData().businessId)
+      );
+      
+      // UPDATE:
+      // - Usuario puede editar su propio perfil
+      // - Owner puede editar miembros de su equipo
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        (hasRole(['owner']) && resource.data.businessId == getUserData().businessId)
+      );
+      
+      // DELETE: Solo el owner puede eliminar miembros de su equipo (no a sí mismo)
+      allow delete: if isAuthenticated() && 
+        hasRole(['owner']) && 
+        resource.data.businessId == getUserData().businessId &&
+        resource.data.uid != request.auth.uid;
     }
     
-    // Reglas legacy para staffData (bloquear o mantener solo lectura para migración)
+    // Reglas legacy para staffData (bloquear completamente)
     match /staffData/{userId} {
        allow read, write: if false; 
     }

@@ -72,19 +72,14 @@ export default function Signup() {
 
     try {
       // Use Firebase authentication
-      // Explicitly register as 'owner' since this form is for new business creation
+      // Register as 'owner' - this triggers business creation in authUtils.js
+      // ProtectedRoute maps 'owner' to 'doctor' routes for access
       const role = 'owner'
 
       await signup(formData.email, formData.password, formData.fullName, role, formData.businessName)
 
-      // Redirect to verify email page with role and email data
-      navigate('/verify-email', {
-        state: {
-          role: role,
-          email: formData.email,
-          fullName: formData.fullName
-        }
-      })
+      // Redirect DIRECTLY to doctor dashboard to avoid loops
+      navigate('/doctor')
     } catch (error) {
       console.error('Signup error:', error)
       // Handle specific Firebase errors

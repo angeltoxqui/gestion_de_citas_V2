@@ -1,7 +1,14 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
-export default function ProtectedRoute({ children, requiredRole = null }) {
+/**
+ * ProtectedRoute - Guards routes based on authentication and role
+ * @param {Object} props
+ * @param {React.ReactNode} props.children - Child components to render
+ * @param {string} props.requiredRole - Required role ('doctor' or 'receptionist')
+ * @param {boolean} props.ownerOnly - If true, only 'owner' role can access
+ */
+export default function ProtectedRoute({ children, requiredRole = null, ownerOnly = false }) {
   const { currentUser, userRole, loading } = useAuth()
 
   if (loading) {
@@ -19,15 +26,29 @@ export default function ProtectedRoute({ children, requiredRole = null }) {
     return <Navigate to="/login" replace />
   }
 
-  if (requiredRole && userRole !== requiredRole) {
-    // Redirect to login with error message or to appropriate dashboard
+  // Check owner-only restriction FIRST
+  if (ownerOnly && userRole !== 'owner') {
+    // Non-owners trying to access owner-only routes get redirected to their dashboard
+    console.warn(`⚠️ Access denied: ${userRole} tried to access owner-only route`)
     if (userRole === 'doctor') {
       return <Navigate to="/doctor" replace />
     } else if (userRole === 'receptionist') {
       return <Navigate to="/receptionist" replace />
-    } else {
-      return <Navigate to="/login" replace />
     }
+    return <Navigate to="/login" replace />
+  }
+
+  // Owner can access all doctor routes
+  const effectiveRole = userRole === 'owner' ? 'doctor' : userRole
+
+  if (requiredRole && effectiveRole !== requiredRole) {
+    // Redirect to appropriate dashboard based on actual role
+    if (userRole === 'owner' || userRole === 'doctor') {
+      return <Navigate to="/doctor" replace />
+    } else if (userRole === 'receptionist') {
+      return <Navigate to="/receptionist" replace />
+    }
+    return <Navigate to="/login" replace />
   }
 
   return children

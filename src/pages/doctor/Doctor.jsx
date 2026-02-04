@@ -3,13 +3,14 @@ import { useAuth } from '../../hooks/useAuth'
 import { Link } from 'react-router-dom'
 import LogoutButton from '../../components/LogoutButton'
 import EmailVerificationStatus from '../../components/EmailVerificationStatus'
-import { FaUserDoctor, FaCalendar, FaUserInjured, FaPills, FaCalendarDay, FaFileLines, FaPlus, FaHashtag, FaGear, FaUsers } from 'react-icons/fa6'
+import { FaUserDoctor, FaCalendar, FaUserInjured, FaPills, FaCalendarDay, FaFileLines, FaPlus, FaHashtag, FaGear, FaUsers, FaChartLine } from 'react-icons/fa6'
 import { query, where, onSnapshot, doc, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { getBusinessCollection } from '../../utils/firestoreUtils'
 
 export default function Doctor() {
   const { currentUser, userRole, businessId } = useAuth()
+  const isOwner = userRole === 'owner' // Check if user is the business owner
   const [stats, setStats] = useState({
     todayAppointments: 0,
     waitingPatients: 0,
@@ -18,18 +19,19 @@ export default function Doctor() {
   })
   const [doctorName, setDoctorName] = useState('')
 
-  // Fetch doctor's name from staffData collection
+  // Fetch doctor's name from users collection (multi-tenant)
   useEffect(() => {
     if (!currentUser) return
 
     const fetchDoctorName = async () => {
       try {
-        const userDocRef = doc(db, 'staffData', currentUser.uid)
+        // Read from unified 'users' collection (not legacy 'staffData')
+        const userDocRef = doc(db, 'users', currentUser.uid)
         const userDoc = await getDoc(userDocRef)
 
         if (userDoc.exists()) {
           const userData = userDoc.data()
-          const name = userData.fullName || currentUser.displayName || 'Profesional'
+          const name = userData.displayName || currentUser.displayName || 'Profesional'
           setDoctorName(name)
         } else {
           setDoctorName(currentUser.displayName || 'Profesional')
@@ -114,7 +116,14 @@ export default function Doctor() {
               <FaUserDoctor className="w-6 h-6 text-blue-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Panel del Profesional</h1>
+              <h1 className="text-xl font-bold flex items-center gap-2">
+                Panel del Profesional
+                {isOwner && (
+                  <span className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full font-medium">
+                    Administrador
+                  </span>
+                )}
+              </h1>
               <p className="text-sm text-slate-400">Bienvenido, {currentUser?.displayName || 'Profesional'}</p>
             </div>
           </div>
@@ -258,25 +267,40 @@ export default function Doctor() {
               </div>
             </Link>
 
-            <Link to="/doctor/settings" className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
-              <div className="flex items-center space-x-3">
-                <FaGear className="w-5 h-5 text-slate-400" />
-                <div>
-                  <h3 className="font-semibold">Configuración del Negocio</h3>
-                  <p className="text-sm text-slate-400">Horarios, contacto y datos públicos</p>
-                </div>
-              </div>
-            </Link>
+            {/* Owner-only links */}
+            {isOwner && (
+              <>
+                <Link to="/doctor/settings" className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <FaGear className="w-5 h-5 text-slate-400" />
+                    <div>
+                      <h3 className="font-semibold">Configuración del Negocio</h3>
+                      <p className="text-sm text-slate-400">Horarios, contacto y datos públicos</p>
+                    </div>
+                  </div>
+                </Link>
 
-            <Link to="/doctor/team" className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
-              <div className="flex items-center space-x-3">
-                <FaUsers className="w-5 h-5 text-indigo-400" />
-                <div>
-                  <h3 className="font-semibold">Gestión de Equipo</h3>
-                  <p className="text-sm text-slate-400">Agregar y gestionar profesionales</p>
-                </div>
-              </div>
-            </Link>
+                <Link to="/doctor/team" className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <FaUsers className="w-5 h-5 text-indigo-400" />
+                    <div>
+                      <h3 className="font-semibold">Gestión de Equipo</h3>
+                      <p className="text-sm text-slate-400">Agregar y gestionar profesionales</p>
+                    </div>
+                  </div>
+                </Link>
+
+                <Link to="/doctor/stats" className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <FaChartLine className="w-5 h-5 text-green-400" />
+                    <div>
+                      <h3 className="font-semibold">Resumen Financiero</h3>
+                      <p className="text-sm text-slate-400">Ver ingresos y métricas clave</p>
+                    </div>
+                  </div>
+                </Link>
+              </>
+            )}
           </div>
         </div>
 

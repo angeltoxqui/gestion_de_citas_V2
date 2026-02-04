@@ -17,9 +17,11 @@ import {
   CalendarRange,
   CalendarCheck,
   ArrowLeft,
-  Users
+  Users,
+  Ban,
+  Trash2
 } from 'lucide-react'
-import { onSnapshot, query, orderBy, updateDoc, collection, where, doc, getDoc } from 'firebase/firestore'
+import { onSnapshot, query, orderBy, updateDoc, collection, where, doc, getDoc, addDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { getBusinessCollection, getBusinessDoc } from '../../../utils/firestoreUtils'
 
@@ -32,6 +34,15 @@ export default function DoctorAppointments() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [showPatientDetails, setShowPatientDetails] = useState(false)
+
+  // Blocking Schedule State
+  const [showBlockModal, setShowBlockModal] = useState(false)
+  const [blockFormData, setBlockFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    startTime: '13:00',
+    endTime: '14:00',
+    reason: 'Almuerzo'
+  })
 
   const [doctorName, setDoctorName] = useState('')
 
@@ -231,6 +242,62 @@ export default function DoctorAppointments() {
     }
   }
 
+  const handleBlockSchedule = async (e) => {
+    e.preventDefault()
+
+    if (blockFormData.startTime >= blockFormData.endTime) {
+      toast.error('La hora de inicio debe ser anterior a la hora de fin')
+      return
+    }
+
+    try {
+      const appointmentsRef = getBusinessCollection(businessId, 'appointments')
+      await addDoc(appointmentsRef, {
+        businessId,
+        doctorId: currentUser.uid,
+        doctorName: doctorName,
+        appointmentDate: blockFormData.date,
+        appointmentTime: blockFormData.startTime,
+        endTime: blockFormData.endTime,
+        type: 'blocked',
+        status: 'blocked',
+        patientName: 'Horario Bloqueado',
+        appointmentType: 'blocked', // For compatibility
+        patientPhone: '',
+        patientEmail: '',
+        patientAge: '',
+        patientGender: '',
+        reason: blockFormData.reason,
+        createdAt: new Date().toISOString()
+      })
+
+      toast.success('Horario bloqueado exitosamente')
+      setShowBlockModal(false)
+      // Reset form
+      setBlockFormData({
+        date: new Date().toISOString().split('T')[0],
+        startTime: '13:00',
+        endTime: '14:00',
+        reason: 'Almuerzo'
+      })
+    } catch (error) {
+      console.error('Error blocking schedule:', error)
+      toast.error(`Error al bloquear horario: ${error.message}`)
+    }
+  }
+
+  const handleDeleteBlock = async (blockId) => {
+    if (!confirm('¿Estás seguro de desbloquear este horario?')) return
+
+    try {
+      const appointmentRef = getBusinessDoc(businessId, 'appointments', blockId)
+      await deleteDoc(appointmentRef)
+      toast.success('Horario desbloqueado')
+    } catch (error) {
+      console.error('Error deleting block:', error)
+      toast.error('Error al desbloquear horario')
+    }
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -238,6 +305,7 @@ export default function DoctorAppointments() {
       case 'completed': return 'text-green-400 bg-green-400/10'
       case 'cancelled': return 'text-red-400 bg-red-400/10'
       case 'rescheduled': return 'text-yellow-400 bg-yellow-400/10'
+      case 'blocked': return 'text-red-400 bg-red-400/10'
       default: return 'text-gray-400 bg-gray-400/10'
     }
   }
@@ -248,6 +316,7 @@ export default function DoctorAppointments() {
       case 'completed': return <Check className="w-4 h-4" />
       case 'cancelled': return <X className="w-4 h-4" />
       case 'rescheduled': return <Calendar className="w-4 h-4" />
+      case 'blocked': return <Ban className="w-4 h-4" />
       default: return <AlertTriangle className="w-4 h-4" />
     }
   }
@@ -258,6 +327,7 @@ export default function DoctorAppointments() {
       case 'checkup': return 'text-green-400 bg-green-400/10'
       case 'emergency': return 'text-red-400 bg-red-400/10'
       case 'followup': return 'text-blue-400 bg-blue-400/10'
+      case 'blocked': return 'text-slate-400 bg-slate-400/10'
       default: return 'text-gray-400 bg-gray-400/10'
     }
   }
@@ -342,12 +412,25 @@ export default function DoctorAppointments() {
             </div>
           </div>
 
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-blue-400 focus:outline-none"
-          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setBlockFormData(prev => ({ ...prev, date: selectedDate }))
+                setShowBlockModal(true)
+              }}
+              className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors flex items-center space-x-2 border border-red-500/20"
+            >
+              <Ban className="w-4 h-4" />
+              <span>Bloquear Horario</span>
+            </button>
+
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-blue-400 focus:outline-none"
+            />
+          </div>
 
           {/* Staff filter */}
           {teamMembers.length > 1 && (
@@ -385,77 +468,116 @@ export default function DoctorAppointments() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {todayAppointments.map((appointment) => (
-                <div key={appointment.id} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-                  <div className="flex justify-between items-start mb-4">
+                appointment.status === 'blocked' ? (
+                  // Blocked Slot Display
+                  <div key={appointment.id} className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 backdrop-blur-xl flex flex-col justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold">{appointment.patientName}</h3>
-                      <p className="text-slate-400">{appointment.patientAge || 'N/A'} años, {appointment.patientGender || 'N/A'}</p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getStatusColor(appointment.status)}`}>
-                        {getStatusIcon(appointment.status)}
-                        <span className="capitalize">{appointment.status}</span>
-                      </span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAppointmentTypeColor(appointment.appointmentType)}`}>
-                        {appointment.appointmentType}
-                      </span>
-                    </div>
-                  </div>
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center space-x-2">
+                          <Ban className="w-5 h-5 text-red-400" />
+                          <h3 className="text-lg font-semibold text-red-400">Horario Bloqueado</h3>
+                        </div>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400">
+                          Bloqueado
+                        </span>
+                      </div>
 
-                  <div className="space-y-3 mb-4">
-                    <div className="flex items-center space-x-2">
-                      <Clock className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-300">{appointment.appointmentTime}</span>
+                      <div className="space-y-3 mb-4">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="w-4 h-4 text-slate-400" />
+                          <span className="text-slate-300">
+                            {appointment.appointmentTime} - {appointment.endTime || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <AlertTriangle className="w-4 h-4 text-slate-400" />
+                          <span className="text-slate-300">{appointment.reason || 'Sin motivo especificado'}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Phone className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-300">{appointment.patientPhone}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Mail className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-300">{appointment.patientEmail}</span>
-                    </div>
-                  </div>
 
-                  {appointment.symptoms && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-slate-300 mb-1">Síntomas:</h4>
-                      <p className="text-sm text-slate-400">{appointment.symptoms}</p>
-                    </div>
-                  )}
-
-                  {appointment.notes && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-slate-300 mb-1">Notas:</h4>
-                      <p className="text-sm text-slate-400">{appointment.notes}</p>
-                    </div>
-                  )}
-
-                  <div className="flex space-x-2">
                     <button
-                      onClick={() => handleViewPatientDetails(appointment)}
-                      className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-colors"
+                      onClick={() => handleDeleteBlock(appointment.id)}
+                      className="w-full px-3 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-sm transition-colors flex items-center justify-center space-x-2"
                     >
-                      View Details
+                      <Trash2 className="w-4 h-4" />
+                      <span>Desbloquear Horario</span>
                     </button>
-                    {appointment.status === 'scheduled' && (
-                      <>
-                        <button
-                          onClick={() => handleCompleteAppointment(appointment.id)}
-                          className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm transition-colors"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleCancelAppointment(appointment.id)}
-                          className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
                   </div>
-                </div>
+                ) : (
+                  // Standard Appointment Card
+                  <div key={appointment.id} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-lg font-semibold">{appointment.patientName}</h3>
+                        <p className="text-slate-400">{appointment.patientAge || 'N/A'} años, {appointment.patientGender || 'N/A'}</p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getStatusColor(appointment.status)}`}>
+                          {getStatusIcon(appointment.status)}
+                          <span className="capitalize">{appointment.status}</span>
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAppointmentTypeColor(appointment.appointmentType)}`}>
+                          {appointment.appointmentType}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 mb-4">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-300">{appointment.appointmentTime}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Phone className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-300">{appointment.patientPhone}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Mail className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-300">{appointment.patientEmail}</span>
+                      </div>
+                    </div>
+
+                    {appointment.symptoms && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-slate-300 mb-1">Síntomas:</h4>
+                        <p className="text-sm text-slate-400">{appointment.symptoms}</p>
+                      </div>
+                    )}
+
+                    {appointment.notes && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-slate-300 mb-1">Notas:</h4>
+                        <p className="text-sm text-slate-400">{appointment.notes}</p>
+                      </div>
+                    )}
+
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleViewPatientDetails(appointment)}
+                        className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-colors"
+                      >
+                        View Details
+                      </button>
+                      {appointment.status === 'scheduled' && (
+                        <>
+                          <button
+                            onClick={() => handleCompleteAppointment(appointment.id)}
+                            className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm transition-colors"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleCancelAppointment(appointment.id)}
+                            className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
               ))}
             </div>
           )}
@@ -618,6 +740,81 @@ export default function DoctorAppointments() {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Block Schedule Modal */}
+      {showBlockModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 border border-white/10 rounded-2xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4 flex items-center space-x-2 text-white">
+              <Ban className="w-5 h-5 text-red-400" />
+              <span>Bloquear Horario</span>
+            </h2>
+
+            <form onSubmit={handleBlockSchedule} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Fecha</label>
+                <input
+                  type="date"
+                  required
+                  value={blockFormData.date}
+                  onChange={e => setBlockFormData({ ...blockFormData, date: e.target.value })}
+                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-blue-400 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Hora Inicio</label>
+                  <input
+                    type="time"
+                    required
+                    value={blockFormData.startTime}
+                    onChange={e => setBlockFormData({ ...blockFormData, startTime: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-blue-400 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Hora Fin</label>
+                  <input
+                    type="time"
+                    required
+                    value={blockFormData.endTime}
+                    onChange={e => setBlockFormData({ ...blockFormData, endTime: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-blue-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Motivo</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Almuerzo, Reunión..."
+                  value={blockFormData.reason}
+                  onChange={e => setBlockFormData({ ...blockFormData, reason: e.target.value })}
+                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-blue-400 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowBlockModal(false)}
+                  className="px-4 py-2 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors font-medium"
+                >
+                  Bloquear
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

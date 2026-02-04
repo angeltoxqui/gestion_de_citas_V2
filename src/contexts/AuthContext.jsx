@@ -1,119 +1,83 @@
-import { createContext, useEffect, useState, useRef } from 'react'
-import { signOut, onAuthStateChanged } from 'firebase/auth'
-import { auth } from '../firebase/config'
+import { createContext, useEffect, useState } from 'react'
 import {
-  createUserWithRole,
-  signInUser,
-  resetUserPassword,
-  resendUserVerificationEmail,
-  fetchUserDataFromFirestore
-} from '../utils/authUtils'
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail
+} from 'firebase/auth'
+import { auth } from '../firebase/config'
+import { fetchUserRoleFromFirestore, createUserWithRole } from '../utils/authUtils'
 
-const AuthContext = createContext()
+export const AuthContext = createContext()
 
-export { AuthContext }
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null)
-  const [userRole, setUserRole] = useState(null)
-  const [businessId, setBusinessId] = useState(null)
+  const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Semaphore to prevent race conditions between signup and onAuthStateChanged
-  const isSigningUp = useRef(false)
-
-  async function signup(email, password, fullName, role, businessName) {
-    isSigningUp.current = true
+  // 1. REGISTRO
+  const signup = async (email, password, fullName, role, businessName) => {
     try {
-      const { user, role: newRole, businessId: newBusinessId } = await createUserWithRole(email, password, fullName, role, businessName)
-
-      // Manually update state since we ignored the listener
-      setCurrentUser(user)
-      setUserRole(newRole)
-      setBusinessId(newBusinessId)
-
-      return user
-    } finally {
-      // Release the lock after a safe delay to allow Firestore propagation
-      setTimeout(() => {
-        isSigningUp.current = false
-      }, 2000)
-    }
-  }
-
-  async function login(email, password) {
-    return await signInUser(email, password)
-  }
-
-  async function logout() {
-    await signOut(auth)
-  }
-
-  async function resetPassword(email) {
-    return await resetUserPassword(email)
-  }
-
-  async function resendVerificationEmail() {
-    if (currentUser) {
-      return await resendUserVerificationEmail(currentUser)
-    }
-  }
-
-  async function fetchUserData(uid) {
-    try {
-      return await fetchUserDataFromFirestore(uid)
+      const newUserProfile = await createUserWithRole(email, password, fullName, role, businessName);
+      // Actualizamos estado manualmente para feedback instantáneo
+      setUser(newUserProfile);
+      return newUserProfile;
     } catch (error) {
-      console.error('Error fetching user data:', error)
-      return null
+      throw error;
     }
   }
 
+  // 2. LOGIN
+  const login = async (email, password) => {
+    return await signInWithEmailAndPassword(auth, email, password)
+  }
+
+  // 3. LOGOUT
+  const logout = async () => {
+    setUser(null);
+    await signOut(auth);
+  }
+
+  // 4. RESET PASSWORD
+  const resetPassword = async (email) => {
+    return await sendPasswordResetEmail(auth, email);
+  }
+
+  // 5. EL VIGILANTE (Con paciencia)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // If we are in the middle of a signup, ignore this listener update
-      // intended to prevent the "Zombie User" protection from killing the session
-      // before the profile is created.
-      if (isSigningUp.current) return
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Intentamos obtener el perfil con la lógica de reintentos
+        const userProfile = await fetchUserRoleFromFirestore(firebaseUser.uid);
 
-      if (user) {
-        // User is authenticated, try to fetch profile
-        const userData = await fetchUserData(user.uid)
-
-        if (userData) {
-          // Healthy state: Auth + DB Profile exists
-          setCurrentUser(user)
-          setUserRole(userData.role)
-          setBusinessId(userData.businessId)
+        if (userProfile) {
+          // ✅ ÉXITO: Auth + Firestore sincronizados
+          setUser({ ...firebaseUser, ...userProfile });
         } else {
-          // CRITICAL: Zombie State (Auth exists but no DB Profile)
-          // This causes infinite loops if we let them proceed.
-          console.warn('⚠️ Zombie User detected: Authenticated but no Firestore profile. Force signing out.')
-          await signOut(auth)
-          setCurrentUser(null)
-          setUserRole(null)
-          setBusinessId(null)
+          // ❌ FALLO REAL: Después de 3 segundos no apareció el perfil.
+          // Solo AHORA asumimos que es un error y cerramos sesión.
+          console.warn("⚠️ Usuario detectado sin perfil (Zombie). Cerrando sesión.");
+          await signOut(auth);
+          setUser(null);
         }
       } else {
-        // No user authenticated
-        setCurrentUser(null)
-        setUserRole(null)
-        setBusinessId(null)
+        setUser(null);
       }
-      setLoading(false)
-    })
+      setLoading(false);
+    });
 
-    return unsubscribe
-  }, [])
+    return () => unsubscribe();
+  }, []);
 
   const value = {
-    currentUser,
-    userRole,
-    businessId,
+    user,
+    currentUser: user,           // Alias para compatibilidad con componentes
+    userRole: user?.role,        // Rol del usuario
+    businessId: user?.businessId, // ID del negocio
+    loading,
     signup,
     login,
     logout,
-    resetPassword,
-    resendVerificationEmail,
-    loading
+    resetPassword
   }
 
   return (
@@ -122,4 +86,3 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   )
 }
-

@@ -59,8 +59,9 @@ export default function TeamManagement() {
 
         setIsLoading(true)
 
-        const staffRef = collection(db, 'staffData')
-        const q = query(staffRef, where('businessId', '==', businessId))
+        // Query users collection (unified multi-tenant architecture)
+        const usersRef = collection(db, 'users')
+        const q = query(usersRef, where('businessId', '==', businessId))
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const members = snapshot.docs.map(doc => ({
@@ -131,10 +132,10 @@ export default function TeamManagement() {
         try {
             const invitationCode = generateInvitationCode()
 
-            // Create staff document with pending status
-            const staffRef = collection(db, 'staffData')
-            const newMemberDoc = await addDoc(staffRef, {
-                fullName: formData.fullName.trim(),
+            // Create user document with pending status in unified 'users' collection
+            const usersRef = collection(db, 'users')
+            const newMemberDoc = await addDoc(usersRef, {
+                displayName: formData.fullName.trim(),
                 email: formData.email.trim().toLowerCase(),
                 role: formData.role,
                 specialty: formData.specialty.trim() || null,
@@ -176,13 +177,13 @@ export default function TeamManagement() {
             return
         }
 
-        if (!confirm(`¿Estás seguro de eliminar a ${member.fullName}?`)) {
+        if (!confirm(`¿Estás seguro de eliminar a ${member.displayName}?`)) {
             return
         }
 
         try {
-            await deleteDoc(doc(db, 'staffData', member.id))
-            toast.success(`${member.fullName} eliminado del equipo`)
+            await deleteDoc(doc(db, 'users', member.id))
+            toast.success(`${member.displayName} eliminado del equipo`)
         } catch (error) {
             console.error('Error deleting member:', error)
             toast.error(`Error al eliminar: ${error.message}`)
@@ -339,11 +340,11 @@ export default function TeamManagement() {
                                     <div className="flex items-center space-x-3">
                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${member.uid ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-500/20 text-slate-400'
                                             }`}>
-                                            {member.fullName?.charAt(0)?.toUpperCase() || '?'}
+                                            {member.displayName?.charAt(0)?.toUpperCase() || '?'}
                                         </div>
                                         <div>
                                             <h3 className="font-semibold text-white flex items-center space-x-2">
-                                                <span>{member.fullName}</span>
+                                                <span>{member.displayName}</span>
                                                 {isOwner && (
                                                     <span className="text-xs px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full">
                                                         Tú

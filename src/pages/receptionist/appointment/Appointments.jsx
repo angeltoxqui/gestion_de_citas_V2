@@ -21,8 +21,11 @@ import {
 } from 'lucide-react'
 import { collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, where, getDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+
 import { getBusinessCollection, getBusinessDoc } from '../../../utils/firestoreUtils'
 import { sendNotification } from '../../../utils/notifications'
+import DnDCalendar from '../../../components/DnDCalendar'
+import { LayoutGrid, List as ListIcon } from 'lucide-react'
 
 export default function Appointments() {
   const { currentUser, businessId } = useAuth()
@@ -34,7 +37,9 @@ export default function Appointments() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [loading, setLoading] = useState(false)
+
   const [businessConfig, setBusinessConfig] = useState(null)
+  const [viewType, setViewType] = useState('list') // 'list' | 'calendar'
 
   // Form states for create/edit
   const [formData, setFormData] = useState({
@@ -283,8 +288,71 @@ export default function Appointments() {
       case 'completed': return 'text-green-400 bg-green-400/10'
       case 'cancelled': return 'text-red-400 bg-red-400/10'
       case 'rescheduled': return 'text-yellow-400 bg-yellow-400/10'
+      case 'blocked': return 'text-red-400 bg-red-400/10'
       default: return 'text-gray-400 bg-gray-400/10'
     }
+  }
+
+  // Transform appointments to calendar events
+  const calendarEvents = filteredAppointments.map(apt => {
+    const start = new Date(`${apt.appointmentDate}T${apt.appointmentTime}`)
+    const end = new Date(start.getTime() + 60 * 60 * 1000) // Default 1 hour
+
+    // For blocked slots, use endTime if available
+    if (apt.type === 'blocked' && apt.endTime) {
+      const endTimeParts = apt.endTime.split(':')
+      end.setHours(parseInt(endTimeParts[0]), parseInt(endTimeParts[1]))
+    }
+
+    return {
+      id: apt.id,
+      title: apt.type === 'blocked' ? (apt.reason || 'Bloqueado') : `${apt.patientName} - ${apt.doctorName}`,
+      start,
+      end,
+      resource: apt,
+      status: apt.status,
+      type: apt.type || 'consultation'
+    }
+  })
+
+  const handleEventDrop = async ({ event, start, end }) => {
+    // Prevent moving past appointments if needed, or validate business rules using businessConfig
+    // For now, allow any move
+
+    const newDate = start.toISOString().split('T')[0]
+    const newTime = start.toTimeString().substring(0, 5)
+
+    // Calculate new end time logic if we were persisting duration
+    // For blocked slots, we should ideally preserve duration
+    let updates = {
+      appointmentDate: newDate,
+      appointmentTime: newTime,
+      updatedAt: new Date().toISOString()
+    }
+
+    if (event.type === 'blocked') {
+      // Update endTime based on duration
+      const durationMs = end.getTime() - start.getTime()
+      const newEnd = new Date(start.getTime() + durationMs)
+      updates.endTime = newEnd.toTimeString().substring(0, 5)
+    } else {
+      // Set status to rescheduled if it wasn't already? 
+      // Optionally: updates.status = 'rescheduled'
+    }
+
+    try {
+      const appointmentRef = getBusinessDoc(businessId, 'appointments', event.id)
+      await updateDoc(appointmentRef, updates)
+      toast.success('Cita reagendada exitosamente')
+    } catch (error) {
+      console.error('Error rescheduling appointment:', error)
+      toast.error('Error al reagendar cita')
+    }
+  }
+
+  const handleSelectEvent = (event) => {
+    if (event.type === 'blocked') return // Or show block details
+    handleEditAppointment(event.resource)
   }
 
   // Generate time slots from 11:00 AM to 6:00 PM
@@ -371,6 +439,23 @@ export default function Appointments() {
               <option value="cancelled">Cancelled</option>
               <option value="rescheduled">Rescheduled</option>
             </select>
+
+            <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
+              <button
+                onClick={() => setViewType('list')}
+                className={`p-2 rounded-md transition-colors ${viewType === 'list' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'}`}
+                title="List View"
+              >
+                <ListIcon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewType('calendar')}
+                className={`p-2 rounded-md transition-colors ${viewType === 'calendar' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'}`}
+                title="Calendar View"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           <button
             onClick={handleCreateAppointment}
@@ -382,82 +467,92 @@ export default function Appointments() {
         </div>
 
         {/* Appointments List */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-          <h2 className="text-xl font-bold mb-6">Appointments ({filteredAppointments.length})</h2>
+        {viewType === 'list' && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
+            <h2 className="text-xl font-bold mb-6">Appointments ({filteredAppointments.length})</h2>
 
-          {filteredAppointments.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-              <p className="text-slate-400">No appointments found</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredAppointments.map((appointment) => (
-                <div key={appointment.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="font-semibold text-lg">{appointment.patientName}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getStatusColor(appointment.status)}`}>
-                          {getStatusIcon(appointment.status)}
-                          <span className="capitalize">{appointment.status}</span>
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                        <div className="flex items-center space-x-2">
-                          <UserCheck className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-300">{appointment.doctorName}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-300">
-                            {new Date(appointment.appointmentDate).toLocaleDateString()} at {appointment.appointmentTime}
+            {filteredAppointments.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                <p className="text-slate-400">No appointments found</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredAppointments.map((appointment) => (
+                  <div key={appointment.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="font-semibold text-lg">{appointment.patientName}</h3>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getStatusColor(appointment.status)}`}>
+                            {getStatusIcon(appointment.status)}
+                            <span className="capitalize">{appointment.status}</span>
                           </span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Phone className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-300">{appointment.patientPhone}</span>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                          <div className="flex items-center space-x-2">
+                            <UserCheck className="w-4 h-4 text-slate-400" />
+                            <span className="text-slate-300">{appointment.doctorName}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="w-4 h-4 text-slate-400" />
+                            <span className="text-slate-300">
+                              {new Date(appointment.appointmentDate).toLocaleDateString()} at {appointment.appointmentTime}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Phone className="w-4 h-4 text-slate-400" />
+                            <span className="text-slate-300">{appointment.patientPhone}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Mail className="w-4 h-4 text-slate-400" />
+                            <span className="text-slate-300">{appointment.patientEmail}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Mail className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-300">{appointment.patientEmail}</span>
-                        </div>
+
+                        {appointment.notes && (
+                          <p className="text-sm text-slate-400 mt-2">{appointment.notes}</p>
+                        )}
                       </div>
 
-                      {appointment.notes && (
-                        <p className="text-sm text-slate-400 mt-2">{appointment.notes}</p>
-                      )}
-                    </div>
-
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleEditAppointment(appointment)}
-                        className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
-                      >
-                        <Edit className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleRescheduleAppointment(appointment.id)}
-                        className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded text-sm transition-colors"
-                      >
-                        <Calendar className="w-3 h-3" />
-                      </button>
-                      {appointment.status === 'scheduled' && (
+                      <div className="flex space-x-2">
                         <button
-                          onClick={() => handleCancelAppointment(appointment.id)}
-                          className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors"
+                          onClick={() => handleEditAppointment(appointment)}
+                          className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
                         >
-                          <X className="w-3 h-3" />
+                          <Edit className="w-3 h-3" />
                         </button>
-                      )}
+                        <button
+                          onClick={() => handleRescheduleAppointment(appointment.id)}
+                          className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded text-sm transition-colors"
+                        >
+                          <Calendar className="w-3 h-3" />
+                        </button>
+                        {appointment.status === 'scheduled' && (
+                          <button
+                            onClick={() => handleCancelAppointment(appointment.id)}
+                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewType === 'calendar' && (
+          <DnDCalendar
+            events={calendarEvents}
+            onEventDrop={handleEventDrop}
+            onSelectEvent={handleSelectEvent}
+          />
+        )}
       </main>
 
       {/* Create/Edit Modal */}

@@ -8,6 +8,7 @@ import ReceptionistAppointments from './pages/receptionist/appointment/Appointme
 import Signup from './pages/auth/Signup'
 import ForgotPasswordForm from './pages/auth/ForgotPasswordForm'
 import VerifyEmail from './pages/auth/VerifyEmail'
+import JoinTeam from './pages/auth/JoinTeam'
 import ProtectedRoute from './components/ProtectedRoute'
 
 // Doctor Prescription Pages
@@ -21,6 +22,7 @@ import ServiceCatalog from './pages/doctor/services/ServiceCatalog'
 // Doctor Settings
 import BusinessSettings from './pages/doctor/settings/BusinessSettings'
 import TeamManagement from './pages/doctor/settings/TeamManagement'
+import FinancialDashboard from './pages/doctor/stats/FinancialDashboard'
 
 // Receptionist Prescription Pages
 import ReceptionistPrescriptions from './pages/receptionist/prescriptions/Prescriptions'
@@ -53,6 +55,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/signup/:role" element={<Signup />} />
+      <Route path="/join" element={<JoinTeam />} />
       <Route path="/queue/:businessId" element={<TokenDisplay />} />
       <Route path="/book/:businessId" element={<PublicBooking />} />
       {/* Legacy routes for backwards compatibility */}
@@ -108,13 +111,18 @@ function App() {
         </ProtectedRoute>
       } />
       <Route path="/doctor/settings" element={
-        <ProtectedRoute requiredRole="doctor">
+        <ProtectedRoute requiredRole="doctor" ownerOnly={true}>
           <BusinessSettings />
         </ProtectedRoute>
       } />
       <Route path="/doctor/team" element={
-        <ProtectedRoute requiredRole="doctor">
+        <ProtectedRoute requiredRole="doctor" ownerOnly={true}>
           <TeamManagement />
+        </ProtectedRoute>
+      } />
+      <Route path="/doctor/stats" element={
+        <ProtectedRoute requiredRole="doctor" ownerOnly={true}>
+          <FinancialDashboard />
         </ProtectedRoute>
       } />
 
