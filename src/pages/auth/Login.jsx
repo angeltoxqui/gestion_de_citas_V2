@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FaHospital, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaStar, FaShieldHalved, FaUserDoctor, FaUserTie } from 'react-icons/fa6'
+import { FaHospital, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaStar, FaShieldHalved } from 'react-icons/fa6'
 import { useAuth } from '../../hooks/useAuth'
-import { fetchUserRoleFromFirestore } from '../../utils/authUtils'
+import { fetchUserProfile } from '../../utils/authUtils'
 
 export default function Login() {
   const navigate = useNavigate()
   const { login } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
-  const [selectedRole, setSelectedRole] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -16,8 +15,8 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!selectedRole || !email || !password) {
-      setError('Por favor completa todos los campos y selecciona tu rol.')
+    if (!email || !password) {
+      setError('Por favor completa todos los campos.')
       return
     }
 
@@ -28,24 +27,38 @@ export default function Login() {
       // Use Firebase authentication
       const user = await login(email, password)
 
-      // Fetch the user's role from Firestore
-      const userRole = await fetchUserRoleFromFirestore(user.uid)
+      // Fetch the user's role from Firestore using new unifed 'users' collection logic
+      const userData = await fetchUserProfile(user.uid)
 
-      // Check if user's role matches selected role
-      if (userRole === selectedRole) {
-        // Redirect based on role
-        if (selectedRole === 'doctor') {
-          navigate('/doctor')
-        } else if (selectedRole === 'receptionist') {
-          navigate('/receptionist')
-        }
-      } else if (userRole) {
-        setError(`El rol seleccionado no coincide con tu cuenta. Tu cuenta está registrada como: ${userRole}`)
-        setIsLoading(false)
-      } else {
-        // If no role is found, redirect to doctor by default (fallback)
-        navigate('/doctor')
+      if (!userData) {
+        throw new Error('Usuario no encontrado en base de datos')
       }
+
+      const userRole = userData.role
+
+      // Redirect based on role
+      switch (userRole) {
+        case 'owner':
+        case 'admin':
+          // Owner / Admin -> Full Dashboard
+          navigate('/doctor/dashboard')
+          break
+        case 'professional':
+        case 'staff':
+        case 'doctor': // Legacy support
+          // Professional -> Personal Agenda
+          navigate('/doctor/appointments')
+          break
+        case 'receptionist':
+          // Receptionist -> Reception Dashboard
+          navigate('/receptionist/dashboard')
+          break
+        default:
+          // Fallback
+          console.warn('Unknown role:', userRole)
+          navigate('/doctor')
+      }
+
     } catch (error) {
       console.error('Login error:', error)
       // Handle specific Firebase errors
@@ -59,6 +72,8 @@ export default function Login() {
         errorMessage = 'Por favor ingresa un correo electrónico válido.'
       } else if (error.code === 'auth/user-disabled') {
         errorMessage = 'Esta cuenta ha sido deshabilitada.'
+      } else if (error.message.includes('Usuario no encontrado')) {
+        errorMessage = 'No se encontró información de perfil para este usuario.'
       } else if (error.message.includes('No document to update')) {
         errorMessage = 'Configuración de cuenta incompleta. Contacta a soporte.'
       }
@@ -103,51 +118,6 @@ export default function Login() {
           {/* Form Card */}
           <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl shadow-black/20">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Professional Role Selection */}
-              <div className="space-y-3">
-                <label className="block text-sm font-semibold text-slate-200">
-                  Rol Profesional
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('doctor')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${selectedRole === 'doctor'
-                        ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/20'
-                        : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
-                      }`}
-                  >
-                    <div className="flex flex-col items-center space-y-2">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${selectedRole === 'doctor'
-                          ? 'bg-blue-400 text-slate-900'
-                          : 'bg-white/10 text-slate-300'
-                        }`}>
-                        <FaUserDoctor className="w-6 h-6" />
-                      </div>
-                      <span className="text-sm font-medium">Profesional</span>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('receptionist')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${selectedRole === 'receptionist'
-                        ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/20'
-                        : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
-                      }`}
-                  >
-                    <div className="flex flex-col items-center space-y-2">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${selectedRole === 'receptionist'
-                          ? 'bg-blue-400 text-slate-900'
-                          : 'bg-white/10 text-slate-300'
-                        }`}>
-                        <FaUserTie className="w-6 h-6" />
-                      </div>
-                      <span className="text-sm font-medium">Recepcionista</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
 
               {/* Email Field */}
               <div className="space-y-3">
@@ -216,7 +186,7 @@ export default function Login() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={!selectedRole || !email || !password || isLoading}
+                disabled={!email || !password || isLoading}
                 className="w-full py-4 px-6 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed text-slate-900 font-bold text-lg rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:scale-100"
               >
                 {isLoading ? (

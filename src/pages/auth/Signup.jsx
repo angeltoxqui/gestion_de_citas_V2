@@ -1,15 +1,14 @@
 import { useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
-import { FaHospital, FaUserDoctor, FaBellConcierge, FaIdCard, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaStar, FaShieldHalved, FaUserTie, FaBuilding } from 'react-icons/fa6'
+import { Link, useNavigate } from 'react-router-dom'
+import { FaHospital, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaStar, FaShieldHalved, FaBuilding, FaIdCard } from 'react-icons/fa6'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function Signup() {
-  const { role: initialRole } = useParams()
   const navigate = useNavigate()
   const { signup } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [selectedRole, setSelectedRole] = useState(initialRole || '')
+
   const [formData, setFormData] = useState({
     businessName: '',
     fullName: '',
@@ -19,14 +18,6 @@ export default function Signup() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({})
-
-  const roleMeta = {
-    doctor: { title: 'Profesional', icon: FaUserDoctor, description: 'Brinda atención con herramientas optimizadas para citas e historiales' },
-    receptionist: { title: 'Recepcionista', icon: FaBellConcierge, description: 'Coordina la recepción de clientes, agenda y operaciones de mostrador' }
-  }
-
-  const currentRole = roleMeta[selectedRole] || null
-  const IconComponent = currentRole?.icon || FaHospital
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -39,10 +30,6 @@ export default function Signup() {
 
   const validateForm = () => {
     const newErrors = {}
-
-    if (!selectedRole) {
-      newErrors.role = 'Por favor selecciona un rol profesional'
-    }
 
     if (!formData.businessName.trim()) {
       newErrors.businessName = 'El nombre del negocio es requerido'
@@ -85,12 +72,15 @@ export default function Signup() {
 
     try {
       // Use Firebase authentication
-      await signup(formData.email, formData.password, formData.fullName, selectedRole, formData.businessName)
+      // Explicitly register as 'owner' since this form is for new business creation
+      const role = 'owner'
+
+      await signup(formData.email, formData.password, formData.fullName, role, formData.businessName)
 
       // Redirect to verify email page with role and email data
       navigate('/verify-email', {
         state: {
-          role: selectedRole,
+          role: role,
           email: formData.email,
           fullName: formData.fullName
         }
@@ -136,72 +126,19 @@ export default function Signup() {
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-2xl mb-6 shadow-2xl shadow-blue-500/25">
-              <IconComponent className="w-10 h-10 text-slate-900" />
+              <FaHospital className="w-10 h-10 text-slate-900" />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-sky-400 bg-clip-text text-transparent mb-3">
-              Únete al Equipo
+              Crea tu Negocio
             </h1>
             <p className="text-lg text-slate-300 leading-relaxed">
-              {currentRole ? `Crea tu cuenta de ${currentRole.title}` : 'Elige tu rol y crea tu cuenta'}
+              Comienza a gestionar tu clínica o consultorio
             </p>
-            {currentRole && (
-              <p className="text-sm text-slate-400 mt-2">
-                {currentRole.description}
-              </p>
-            )}
           </div>
 
           {/* Form Card */}
           <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl shadow-black/20">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Professional Role Selection */}
-              <div className="space-y-3">
-                <label className="block text-sm font-semibold text-slate-200">
-                  Rol Profesional
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('doctor')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${selectedRole === 'doctor'
-                      ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/20'
-                      : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
-                      }`}
-                  >
-                    <div className="flex flex-col items-center space-y-2">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${selectedRole === 'doctor'
-                        ? 'bg-blue-400 text-slate-900'
-                        : 'bg-white/10 text-slate-300'
-                        }`}>
-                        <FaUserDoctor className="w-6 h-6" />
-                      </div>
-                      <span className="text-sm font-medium">Profesional</span>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('receptionist')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all duration-300 ${selectedRole === 'receptionist'
-                      ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/20'
-                      : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
-                      }`}
-                  >
-                    <div className="flex flex-col items-center space-y-2">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${selectedRole === 'receptionist'
-                        ? 'bg-blue-400 text-slate-900'
-                        : 'bg-white/10 text-slate-300'
-                        }`}>
-                        <FaBellConcierge className="w-6 h-6" />
-                      </div>
-                      <span className="text-sm font-medium">Recepcionista</span>
-                    </div>
-                  </button>
-                </div>
-                {errors.role && (
-                  <p className="text-sm text-red-400">{errors.role}</p>
-                )}
-              </div>
 
               {/* Business Name Field */}
               <div className="space-y-3">
@@ -415,5 +352,3 @@ export default function Signup() {
     </div>
   )
 }
-
-

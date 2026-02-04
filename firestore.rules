@@ -11,16 +11,25 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Verifica si el usuario es el dueño de la cuenta (para staffData)
+    // Verifica si el usuario es el dueño del documento (para users)
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Obtiene los datos del usuario actual desde la colección 'users'
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     // Verifica si el usuario pertenece al negocio especificado
-    // Lee el documento de staffData del usuario actual y compara el businessId
     function belongsToBusiness(businessId) {
       return isAuthenticated() && 
-        get(/databases/$(database)/documents/staffData/$(request.auth.uid)).data.businessId == businessId;
+        getUserData().businessId == businessId;
+    }
+    
+    // Verifica roles específicos
+    function hasRole(allowedRoles) {
+      return isAuthenticated() && getUserData().role in allowedRoles;
     }
 
     // Validación básica para creación de citas públicas
@@ -28,18 +37,23 @@ service cloud.firestore {
       let data = request.resource.data;
       return data.keys().hasAll(['patientName', 'patientPhone', 'appointmentDate', 'source']) &&
              data.source == 'online' &&
-             data.status == 'pending'; // Solo permitir estado pendiente
+             data.status == 'pending';
     }
 
     // =================================================================
     // REGLAS POR COLECCIÓN
     // =================================================================
 
-    // 1. Perfiles de Staff (Colección Raíz)
-    // Cada usuario solo puede leer/escribir su propio perfil
+    // 1. Usuarios (Colección Raíz Unificada)
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || belongsToBusiness(resource.data.businessId));
+      allow write: if isOwner(userId); // El usuario puede editar su propio perfil (o restringir más si se desea)
+      allow create: if isAuthenticated() && request.auth.uid == userId; // Permitir creación al registrarse
+    }
+    
+    // Reglas legacy para staffData (bloquear o mantener solo lectura para migración)
     match /staffData/{userId} {
-      allow read: if isAuthenticated(); // Permitir leer (necesario para login/validación)
-      allow write: if isOwner(userId);  // Solo el usuario puede editar sus datos
+       allow read, write: if false; 
     }
 
     // 2. Negocios (Arquitectura Multi-Tenant)
@@ -47,44 +61,34 @@ service cloud.firestore {
       
       // Regla base para el documento del negocio
       allow read: if belongsToBusiness(businessId);
-      // Solo permitir escritura si es necesario (ej: actualizar configuración)
-      allow write: if belongsToBusiness(businessId); // O restringir a rol 'admin'
+      allow write: if belongsToBusiness(businessId) && hasRole(['owner']); 
+      allow create: if isAuthenticated(); // Permitir crear negocio al registrarse
 
       // --- SUBCOLECCIONES ---
 
       // A. Citas (Appointments)
       match /appointments/{appointmentId} {
-        // Lectura: Solo staff del negocio
         allow read: if belongsToBusiness(businessId);
-        
-        // Escritura:
-        // 1. Staff del negocio puede hacer todo (crear/editar/borrar)
-        // 2. Público (sin login) puede CREAR si es cita online válida
         allow create: if belongsToBusiness(businessId) || isValidNewAppointment();
-        
-        // Actualizar/Borrar: Solo staff, el público no puede modificar después de crear
         allow update, delete: if belongsToBusiness(businessId);
       }
 
-      // B. Facturas (Invoices) - Estrictamente privado
+      // B. Facturas (Invoices)
       match /invoices/{invoiceId} {
         allow read, write: if belongsToBusiness(businessId);
       }
 
-      // C. Clientes (Patients/Clients) - Estrictamente privado
+      // C. Clientes (Patients/Clients)
       match /clients/{clientId} {
          allow read, write: if belongsToBusiness(businessId);
       }
       
-      // Compatibilidad con colección 'patients' si se usa ese nombre
       match /patients/{patientId} {
          allow read, write: if belongsToBusiness(businessId);
       }
 
-      // D. Servicios y Productos (Catálogo)
+      // D. Servicios y Productos
       match /services/{serviceId} {
-        // Lectura publica permitida para la agenda online (si se requiere)
-        // Si no, restringir con belongsToBusiness(businessId)
         allow read: if true; 
         allow write: if belongsToBusiness(businessId);
       }
@@ -93,23 +97,22 @@ service cloud.firestore {
         allow read, write: if belongsToBusiness(businessId);
       }
 
-      // E. Recetas (Prescriptions)
+      // E. Recetas
       match /prescriptions/{prescriptionId} {
         allow read, write: if belongsToBusiness(businessId);
       }
       
-      // F. Pagos (Payments)
+      // F. Pagos
       match /payments/{paymentId} {
         allow read, write: if belongsToBusiness(businessId);
       }
 
-      // G. Notas de Cliente (ClientNotes)
+      // G. Notas de Cliente
       match /clientNotes/{noteId} {
         allow read, write: if belongsToBusiness(businessId);
       }
     }
 
-    // Evitar acceso a cualquier otra colección no definida
     match /{document=**} {
       allow read, write: if false;
     }

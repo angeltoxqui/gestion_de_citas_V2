@@ -61,6 +61,7 @@ export async function createUserWithRole(email, password, fullName, role, busine
   // Generate unique business ID and create business document
   const businessId = generateBusinessId(businessName)
 
+  // Create document in 'businesses' collection
   await setDoc(doc(db, 'businesses', businessId), {
     id: businessId,
     name: businessName,
@@ -72,12 +73,14 @@ export async function createUserWithRole(email, password, fullName, role, busine
     plan: 'free' // Default plan
   })
 
-  // Create user document with businessId reference
-  await setDoc(doc(db, 'staffData', user.uid), {
+  // Create user document in root 'users' collection
+  // Note: hardcoded 'owner' here as this function is primarily used for new business registration
+  // But we respect the passed 'role' argument if provided, though typically it's 'owner' for this flow.
+  await setDoc(doc(db, 'users', user.uid), {
     uid: user.uid,
     email: user.email,
     fullName: fullName,
-    role: role,
+    role: role || 'owner',
     businessId: businessId, // Link to business
     emailVerified: false,
     createdAt: new Date().toISOString(),
@@ -85,7 +88,7 @@ export async function createUserWithRole(email, password, fullName, role, busine
     verificationEmailSent: new Date().toISOString()
   })
 
-  return user
+  return { user, role: role || 'owner', businessId }
 }
 
 export async function signInUser(email, password) {
@@ -93,8 +96,8 @@ export async function signInUser(email, password) {
   const user = userCredential.user
 
   if (user.uid) {
-    // Check if the user document exists in Firestore
-    const userDocRef = doc(db, 'staffData', user.uid)
+    // Check if the user document exists in Firestore 'users' collection
+    const userDocRef = doc(db, 'users', user.uid)
     const userDoc = await getDoc(userDocRef)
 
     if (userDoc.exists()) {
@@ -103,12 +106,13 @@ export async function signInUser(email, password) {
         lastLogin: new Date().toISOString()
       })
     } else {
-      // Create new document if it doesn't exist (fallback for users created before Firestore integration)
+      // Create new document if it doesn't exist (fallback)
+      // CAUTION: This fallback might need review if strict role assignment is required
       await setDoc(userDocRef, {
         uid: user.uid,
         email: user.email,
         fullName: user.displayName || 'Unknown',
-        role: 'doctor', // Default role - user can update this later
+        role: 'doctor', // Default fallback role, should ideally be avoided in strict mode
         emailVerified: user.emailVerified,
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
@@ -143,15 +147,23 @@ export async function resendUserVerificationEmail(user) {
 }
 
 export async function fetchUserDataFromFirestore(uid) {
+  // Guard Clause: Validate UID before querying
+  if (!uid || typeof uid !== 'string') {
+    console.warn('fetchUserDataFromFirestore called with invalid UID:', uid)
+    return null
+  }
+
   try {
-    const userDoc = await getDoc(doc(db, 'staffData', uid))
+    const userDoc = await getDoc(doc(db, 'users', uid))
     if (userDoc.exists()) {
       const data = userDoc.data()
       return {
         role: data.role,
-        businessId: data.businessId
+        businessId: data.businessId,
+        ...data // Return full object just in case
       }
     }
+    // Document doesn't exist - return null (don't throw)
     return null
   } catch (error) {
     console.error('Error fetching user data:', error)
@@ -159,10 +171,14 @@ export async function fetchUserDataFromFirestore(uid) {
   }
 }
 
-// Legacy function for backwards compatibility
+// Updated function to return full user data
+// Alias to fetchUserDataFromFirestore or similar, keeping for compatibility
 export async function fetchUserRoleFromFirestore(uid) {
-  const data = await fetchUserDataFromFirestore(uid)
-  return data?.role || null
+  // Reuse the defensive logic from fetchUserDataFromFirestore
+  return await fetchUserDataFromFirestore(uid)
 }
+
+// Ensure fetchUserProfile is available as requested, wrapping existing logic
+export const fetchUserProfile = fetchUserDataFromFirestore
 
 
