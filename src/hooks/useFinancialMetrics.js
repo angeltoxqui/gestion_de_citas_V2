@@ -13,20 +13,16 @@ export function useFinancialMetrics(businessId) {
 
       try {
         setLoading(true)
-        
+
         // Get start of current month
         const now = new Date()
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
         const startOfMonthStr = startOfMonth.toISOString().split('T')[0] // Format YYYY-MM-DD if stored as string
 
-        const invoicesRef = collection(db, 'businesses', businessId, 'invoices')
-        // Filter by paid status and date >= start of month
-        // Note: Filtering by date string depends on your store format. 
-        // If stored as Timestamp, we'd use a Timestamp object. 
-        // Assuming string based on context or mixed, but 'paid' is safe.
-        // We'll fetch 'paid' and filter dates in memory to be safe if formats vary.
+        // Filter by paid status and businessId using proper security rules
         const q = query(
-          invoicesRef, 
+          collection(db, 'invoices'),
+          where('businessId', '==', businessId),
           where('status', '==', 'paid')
         )
 
@@ -38,10 +34,10 @@ export function useFinancialMetrics(businessId) {
 
         // Filter for current month in memory to handle potential date format differences safely
         const currentMonthInvoices = fetchedInvoices.filter(inv => {
-            if (!inv.date) return false
-            // Handle both Timestamp objects and string dates
-            const invDate = inv.date.toDate ? inv.date.toDate() : new Date(inv.date)
-            return invDate >= startOfMonth
+          if (!inv.date) return false
+          // Handle both Timestamp objects and string dates
+          const invDate = inv.date.toDate ? inv.date.toDate() : new Date(inv.date)
+          return invDate >= startOfMonth
         })
 
         setInvoices(currentMonthInvoices)
@@ -77,11 +73,11 @@ export function useFinancialMetrics(businessId) {
       // Normalize date to YYYY-MM-DD
       let dateKey = ''
       if (inv.date && inv.date.toDate) {
-         dateKey = inv.date.toDate().toISOString().split('T')[0]
+        dateKey = inv.date.toDate().toISOString().split('T')[0]
       } else if (inv.date) {
-         dateKey = new Date(inv.date).toISOString().split('T')[0]
+        dateKey = new Date(inv.date).toISOString().split('T')[0]
       }
-      
+
       if (!dateKey) return acc
 
       if (!acc[dateKey]) {

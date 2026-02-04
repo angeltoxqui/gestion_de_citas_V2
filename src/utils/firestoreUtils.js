@@ -1,21 +1,15 @@
-import { collection, doc } from 'firebase/firestore'
+import { collection, doc, query, where } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
-/**
- * Obtiene una referencia a una colección dentro de un negocio específico
- * Estructura: businesses/{businessId}/{collectionName}
- * 
- * @param {string} businessId - ID del negocio (obtenido de useAuth())
- * @param {string} collectionName - Nombre de la colección (appointments, services, etc.)
- * @returns {CollectionReference} Referencia a la subcolección del negocio
- * @throws {Error} Si businessId no está definido
- */
-export function getBusinessCollection(businessId, collectionName) {
-    if (!businessId) {
-        throw new Error(`businessId is required for multi-tenant collection: ${collectionName}`)
-    }
-    return collection(db, 'businesses', businessId, collectionName)
-}
+// Tu función debería verse así:
+export const getBusinessCollection = (collectionName, businessId) => {
+    if (!businessId) throw new Error("businessId es requerido para consultas seguras");
+
+    return query(
+        collection(db, collectionName),
+        where("businessId", "==", businessId)
+    );
+};
 
 /**
  * Obtiene una referencia a un documento dentro de una colección de negocio

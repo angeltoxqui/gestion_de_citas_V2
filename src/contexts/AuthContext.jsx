@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -46,17 +46,16 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Intentamos obtener el perfil con la lógica de reintentos
-        const userProfile = await fetchUserRoleFromFirestore(firebaseUser.uid);
-
-        if (userProfile) {
-          // ✅ ÉXITO: Auth + Firestore sincronizados
-          setUser({ ...firebaseUser, ...userProfile });
-        } else {
-          // ❌ FALLO REAL: Después de 3 segundos no apareció el perfil.
-          // Solo AHORA asumimos que es un error y cerramos sesión.
-          console.warn("⚠️ Usuario detectado sin perfil (Zombie). Cerrando sesión.");
-          await signOut(auth);
+        try {
+          const userProfile = await fetchUserRoleFromFirestore(firebaseUser.uid);
+          // userProfile DEBE contener { role: 'owner', businessId: 'xyz', ... }
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            ...userProfile
+          });
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
           setUser(null);
         }
       } else {
@@ -85,4 +84,8 @@ export function AuthProvider({ children }) {
       {!loading && children}
     </AuthContext.Provider>
   )
+}
+
+export const useAuth = () => {
+  return useContext(AuthContext)
 }

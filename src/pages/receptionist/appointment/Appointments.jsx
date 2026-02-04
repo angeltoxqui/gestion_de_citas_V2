@@ -225,7 +225,7 @@ export default function Appointments() {
           status: 'scheduled' // Ensure status is set to scheduled
         }
 
-        await addDoc(getBusinessCollection(businessId, 'appointments'), appointmentData)
+        await addDoc(collection(db, 'appointments'), appointmentData)
 
         // Trigger notification if enabled
         if (businessConfig?.autoRemindersEnabled && businessConfig?.webhookUrl) {

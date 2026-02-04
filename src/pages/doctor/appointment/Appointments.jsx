@@ -251,7 +251,7 @@ export default function DoctorAppointments() {
     }
 
     try {
-      const appointmentsRef = getBusinessCollection(businessId, 'appointments')
+      const appointmentsRef = collection(db, 'appointments')
       await addDoc(appointmentsRef, {
         businessId,
         doctorId: currentUser.uid,

@@ -17,7 +17,7 @@ import {
   Play,
   Check
 } from 'lucide-react'
-import { onSnapshot, query, where, updateDoc, doc, getDoc } from 'firebase/firestore'
+import { onSnapshot, query, where, updateDoc, doc, getDoc, collection } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { getBusinessCollection, getBusinessDoc } from '../../../utils/firestoreUtils'
 
@@ -71,9 +71,9 @@ export default function TokenQueue() {
     setError('')
 
     try {
-      const appointmentsRef = getBusinessCollection(businessId, 'appointments')
       const q = query(
-        appointmentsRef,
+        collection(db, 'appointments'),
+        where('businessId', '==', businessId),
         where('appointmentDate', '==', selectedDate),
         where('doctorName', '==', doctorName)
       )
