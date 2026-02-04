@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { addDoc, collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { getBusinessCollection } from '../../utils/firestoreUtils'
-import { sendNotification } from '../../utils/notifications'
+// import { sendNotification } from '../../utils/notifications'
 import toast, { Toaster } from 'react-hot-toast'
 import {
     Calendar, Clock, User, Phone, FileText, CheckCircle, Loader2,
@@ -171,8 +171,8 @@ export default function PublicBooking() {
                 reason: `Servicio: ${service?.name || 'N/A'}${formData.notes ? ` - Notas: ${formData.notes.trim()}` : ''}`
             })
 
-            // Trigger notification if enabled
-            if (businessData?.autoRemindersEnabled && businessData?.webhookUrl) {
+            // Trigger notification if enabled - REMOVED: Now handled by Cloud Functions
+            /* if (businessData?.autoRemindersEnabled && businessData?.webhookUrl) {
                 sendNotification({
                     patientName: formData.patientName.trim(),
                     patientPhone: formData.patientPhone.trim(),
@@ -182,7 +182,7 @@ export default function PublicBooking() {
                     doctorName: staffMember?.fullName || 'Por asignar',
                     businessName: businessData?.name || 'Negocio'
                 }, businessData)
-            }
+            } */
 
             toast.success('¡Cita agendada exitosamente!')
             setIsSuccess(true)

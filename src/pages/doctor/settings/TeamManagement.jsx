@@ -83,7 +83,7 @@ export default function TeamManagement() {
         })
 
         return () => unsubscribe()
-    }, [businessId, currentUser, updateStaffCount])
+    }, [businessId, currentUser])
 
     // Handle form input changes
     const handleInputChange = (e) => {
