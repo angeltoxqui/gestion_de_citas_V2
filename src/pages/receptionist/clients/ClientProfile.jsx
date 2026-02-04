@@ -20,8 +20,11 @@ import {
     CheckCircle,
     XCircle,
     AlertCircle,
-    Loader2
+    Loader2,
+    Brain,
+    Zap
 } from 'lucide-react'
+import { useClientIntelligence } from '../../../hooks/useClientIntelligence'
 
 // VIP threshold
 const VIP_THRESHOLD = 1000000
@@ -101,6 +104,9 @@ export default function ClientProfile() {
 
         fetchNotes()
     }, [businessId, decodedClientId])
+
+    // Client Intelligence
+    const intelligence = useClientIntelligence(appointments, invoices)
 
     // Calculate stats
     const stats = useMemo(() => {
@@ -199,8 +205,8 @@ export default function ClientProfile() {
 
                         {/* Client Avatar */}
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${stats.badge === 'vip'
-                                ? 'bg-gradient-to-br from-yellow-400 to-amber-500'
-                                : 'bg-purple-500/20'
+                            ? 'bg-gradient-to-br from-yellow-400 to-amber-500'
+                            : 'bg-purple-500/20'
                             }`}>
                             {stats.badge === 'vip' ? (
                                 <Crown className="w-6 h-6 text-white" />
@@ -241,8 +247,8 @@ export default function ClientProfile() {
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div className={`rounded-xl p-4 backdrop-blur-xl ${stats.badge === 'vip'
-                            ? 'bg-gradient-to-br from-yellow-500/20 to-amber-500/20 border border-yellow-400/30'
-                            : 'bg-white/5 border border-white/10'
+                        ? 'bg-gradient-to-br from-yellow-500/20 to-amber-500/20 border border-yellow-400/30'
+                        : 'bg-white/5 border border-white/10'
                         }`}>
                         <div className="flex items-center space-x-3">
                             <DollarSign className={`w-8 h-8 ${stats.badge === 'vip' ? 'text-yellow-400' : 'text-green-400'}`} />
@@ -295,8 +301,8 @@ export default function ClientProfile() {
                         <button
                             onClick={() => setActiveTab('appointments')}
                             className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeTab === 'appointments'
-                                    ? 'bg-purple-500/20 text-purple-400 border-b-2 border-purple-400'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                ? 'bg-purple-500/20 text-purple-400 border-b-2 border-purple-400'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             <Calendar className="w-4 h-4 inline mr-2" />
@@ -305,8 +311,8 @@ export default function ClientProfile() {
                         <button
                             onClick={() => setActiveTab('payments')}
                             className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeTab === 'payments'
-                                    ? 'bg-green-500/20 text-green-400 border-b-2 border-green-400'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                ? 'bg-green-500/20 text-green-400 border-b-2 border-green-400'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             <DollarSign className="w-4 h-4 inline mr-2" />
@@ -315,12 +321,22 @@ export default function ClientProfile() {
                         <button
                             onClick={() => setActiveTab('notes')}
                             className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeTab === 'notes'
-                                    ? 'bg-cyan-500/20 text-cyan-400 border-b-2 border-cyan-400'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                ? 'bg-cyan-500/20 text-cyan-400 border-b-2 border-cyan-400'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             <FileText className="w-4 h-4 inline mr-2" />
                             Notas Internas
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('intelligence')}
+                            className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeTab === 'intelligence'
+                                ? 'bg-amber-500/20 text-amber-400 border-b-2 border-amber-400'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <Brain className="w-4 h-4 inline mr-2" />
+                            Inteligencia
                         </button>
                     </div>
 
@@ -346,8 +362,8 @@ export default function ClientProfile() {
                                                 <div
                                                     key={apt.id}
                                                     className={`p-4 rounded-xl border ${isFuture
-                                                            ? 'bg-blue-500/10 border-blue-400/30'
-                                                            : 'bg-white/5 border-white/10'
+                                                        ? 'bg-blue-500/10 border-blue-400/30'
+                                                        : 'bg-white/5 border-white/10'
                                                         }`}
                                                 >
                                                     <div className="flex items-center justify-between">
@@ -430,8 +446,8 @@ export default function ClientProfile() {
                                                             ${(inv.totalAmount || 0).toLocaleString()}
                                                         </p>
                                                         <span className={`text-xs px-2 py-0.5 rounded-full ${inv.status === 'paid'
-                                                                ? 'bg-green-500/20 text-green-400'
-                                                                : 'bg-yellow-500/20 text-yellow-400'
+                                                            ? 'bg-green-500/20 text-green-400'
+                                                            : 'bg-yellow-500/20 text-yellow-400'
                                                             }`}>
                                                             {inv.status === 'paid' ? 'Pagada' : 'Pendiente'}
                                                         </span>
@@ -467,8 +483,8 @@ export default function ClientProfile() {
                                     onClick={handleSaveNotes}
                                     disabled={saving || notes === originalNotes}
                                     className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-xl font-medium transition-colors ${notes !== originalNotes
-                                            ? 'bg-cyan-500 hover:bg-cyan-600 text-white'
-                                            : 'bg-white/10 text-slate-400 cursor-not-allowed'
+                                        ? 'bg-cyan-500 hover:bg-cyan-600 text-white'
+                                        : 'bg-white/10 text-slate-400 cursor-not-allowed'
                                         }`}
                                 >
                                     {saving ? (
@@ -483,6 +499,113 @@ export default function ClientProfile() {
                                     <p className="text-sm text-yellow-400 mt-2">
                                         Tienes cambios sin guardar
                                     </p>
+                                )}
+                            </div>
+                        )}
+                        {/* Intelligence Tab */}
+                        {activeTab === 'intelligence' && (
+                            <div className='mt-6'>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                    {/* Tags Section */}
+                                    <div className="md:col-span-3 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
+                                        <h3 className="text-lg font-semibold mb-4 flex items-center">
+                                            <Sparkles className="w-5 h-5 mr-2 text-cyan-400" />
+                                            Etiquetas Automáticas
+                                        </h3>
+
+                                        {intelligence.tags.length === 0 ? (
+                                            <p className="text-slate-400">Sin etiquetas asignadas todavía.</p>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-3">
+                                                {intelligence.tags.map(tag => (
+                                                    <div
+                                                        key={tag.id}
+                                                        className={`flex flex-col px-4 py-2 rounded-xl backdrop-blur-md border border-white/10 bg-gradient-to-br from-${tag.color}-500/20 to-slate-800/50`}
+                                                        style={{
+                                                            // Fallback colors for dynamic classes in Tailwind
+                                                            backgroundColor: tag.id === 'lost' ? 'rgba(239, 68, 68, 0.2)' :
+                                                                tag.id === 'loyal' ? 'rgba(59, 130, 246, 0.2)' :
+                                                                    tag.id === 'whale' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(6, 182, 212, 0.2)'
+                                                        }}
+                                                    >
+                                                        <span className={`font-bold text-${tag.color}-400`}>{tag.label}</span>
+                                                        <span className="text-xs text-slate-400 mt-1">{tag.description}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* RFM Metrics */}
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
+                                        <h4 className="text-slate-400 text-sm font-medium mb-4 flex items-center">
+                                            <Clock className="w-4 h-4 mr-2" />
+                                            Recencia (Días sin visita)
+                                        </h4>
+                                        <p className="text-3xl font-bold text-white">
+                                            {intelligence.recency.days !== null ? `${intelligence.recency.days}` : 'N/A'}
+                                        </p>
+                                        <p className="text-sm text-slate-500 mt-2">
+                                            Última: {intelligence.recency.lastDate ? formatDate(intelligence.recency.lastDate) : 'Nunca'}
+                                        </p>
+                                    </div>
+
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
+                                        <h4 className="text-slate-400 text-sm font-medium mb-4 flex items-center">
+                                            <Calendar className="w-4 h-4 mr-2" />
+                                            Frecuencia (Visitas)
+                                        </h4>
+                                        <div className="flex justify-between items-end">
+                                            <div>
+                                                <p className="text-3xl font-bold text-white">{intelligence.frequency.thisYear}</p>
+                                                <p className="text-sm text-slate-500 mt-1">Este año</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xl font-medium text-slate-300">{intelligence.frequency.total}</p>
+                                                <p className="text-xs text-slate-500">Histórico</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
+                                        <h4 className="text-slate-400 text-sm font-medium mb-4 flex items-center">
+                                            <DollarSign className="w-4 h-4 mr-2" />
+                                            Valor Monetario (Ticket)
+                                        </h4>
+                                        <p className="text-3xl font-bold text-white">
+                                            ${intelligence.monetary.avgTicket.toLocaleString()}
+                                        </p>
+                                        <p className="text-sm text-slate-500 mt-2">
+                                            Ticket Promedio
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Suggestions */}
+                                {intelligence.suggestions.length > 0 && (
+                                    <div className="bg-gradient-to-br from-indigo-900/40 to-slate-900/40 border border-indigo-500/30 rounded-2xl p-6 backdrop-blur-xl">
+                                        <h3 className="text-lg font-semibold mb-6 flex items-center text-indigo-300">
+                                            <Zap className="w-5 h-5 mr-2 text-yellow-400" />
+                                            Acciones Sugeridas
+                                        </h3>
+                                        <div className="space-y-4">
+                                            {intelligence.suggestions.map((suggestion, index) => (
+                                                <div key={index} className="flex items-start bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
+                                                    <div className={`mt-1 w-2 h-2 rounded-full mr-4 ${suggestion.priority === 'high' ? 'bg-red-500 animate-pulse' : 'bg-blue-500'
+                                                        }`} />
+                                                    <div>
+                                                        <h5 className="font-bold text-indigo-200">{suggestion.title}</h5>
+                                                        <p className="text-indigo-100/70 mt-1">{suggestion.action}</p>
+                                                    </div>
+                                                    {suggestion.priority === 'high' && (
+                                                        <span className="ml-auto text-xs px-2 py-1 bg-red-500/20 text-red-400 rounded border border-red-500/30">
+                                                            Prioridad Alta
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         )}

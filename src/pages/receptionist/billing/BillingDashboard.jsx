@@ -17,6 +17,8 @@ import {
   Download
 } from 'lucide-react'
 
+import { FinancialDashboard } from '../../../components/dashboard/FinancialDashboard'
+
 export default function BillingDashboard() {
   const { businessId } = useAuth()
   const [stats, setStats] = useState({
@@ -146,43 +148,9 @@ export default function BillingDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto p-6">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-            <div className="flex items-center space-x-3 mb-4">
-              <FileText className="w-6 h-6 text-blue-400" />
-              <h3 className="text-lg font-semibold">Total Invoices</h3>
-            </div>
-            <p className="text-3xl font-bold text-blue-400">{stats.totalInvoices}</p>
-            <p className="text-sm text-slate-400 mt-2">All time</p>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-            <div className="flex items-center space-x-3 mb-4">
-              <DollarSign className="w-6 h-6 text-yellow-400" />
-              <h3 className="text-lg font-semibold">Pending Payments</h3>
-            </div>
-            <p className="text-3xl font-bold text-yellow-400">{stats.pendingPayments}</p>
-            <p className="text-sm text-slate-400 mt-2">Awaiting payment</p>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-            <div className="flex items-center space-x-3 mb-4">
-              <TrendingUp className="w-6 h-6 text-green-400" />
-              <h3 className="text-lg font-semibold">Total Revenue</h3>
-            </div>
-            <p className="text-3xl font-bold text-green-400">₹{stats.totalRevenue.toLocaleString()}</p>
-            <p className="text-sm text-slate-400 mt-2">All time</p>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-            <div className="flex items-center space-x-3 mb-4">
-              <Calendar className="w-6 h-6 text-purple-400" />
-              <h3 className="text-lg font-semibold">Today's Revenue</h3>
-            </div>
-            <p className="text-3xl font-bold text-purple-400">₹{stats.todayRevenue.toLocaleString()}</p>
-            <p className="text-sm text-slate-400 mt-2">Today</p>
-          </div>
+        {/* Financial Dashboard (New) */}
+        <div className="mb-8">
+          <FinancialDashboard />
         </div>
 
         {/* Payment Methods Breakdown */}

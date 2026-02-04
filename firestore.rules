@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =================================================================
+    // FUNCIONES AUXILIARES
+    // =================================================================
+
+    // Verifica si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Verifica si el usuario es el dueño de la cuenta (para staffData)
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Verifica si el usuario pertenece al negocio especificado
+    // Lee el documento de staffData del usuario actual y compara el businessId
+    function belongsToBusiness(businessId) {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/staffData/$(request.auth.uid)).data.businessId == businessId;
+    }
+
+    // Validación básica para creación de citas públicas
+    function isValidNewAppointment() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['patientName', 'patientPhone', 'appointmentDate', 'source']) &&
+             data.source == 'online' &&
+             data.status == 'pending'; // Solo permitir estado pendiente
+    }
+
+    // =================================================================
+    // REGLAS POR COLECCIÓN
+    // =================================================================
+
+    // 1. Perfiles de Staff (Colección Raíz)
+    // Cada usuario solo puede leer/escribir su propio perfil
+    match /staffData/{userId} {
+      allow read: if isAuthenticated(); // Permitir leer (necesario para login/validación)
+      allow write: if isOwner(userId);  // Solo el usuario puede editar sus datos
+    }
+
+    // 2. Negocios (Arquitectura Multi-Tenant)
+    match /businesses/{businessId} {
+      
+      // Regla base para el documento del negocio
+      allow read: if belongsToBusiness(businessId);
+      // Solo permitir escritura si es necesario (ej: actualizar configuración)
+      allow write: if belongsToBusiness(businessId); // O restringir a rol 'admin'
+
+      // --- SUBCOLECCIONES ---
+
+      // A. Citas (Appointments)
+      match /appointments/{appointmentId} {
+        // Lectura: Solo staff del negocio
+        allow read: if belongsToBusiness(businessId);
+        
+        // Escritura:
+        // 1. Staff del negocio puede hacer todo (crear/editar/borrar)
+        // 2. Público (sin login) puede CREAR si es cita online válida
+        allow create: if belongsToBusiness(businessId) || isValidNewAppointment();
+        
+        // Actualizar/Borrar: Solo staff, el público no puede modificar después de crear
+        allow update, delete: if belongsToBusiness(businessId);
+      }
+
+      // B. Facturas (Invoices) - Estrictamente privado
+      match /invoices/{invoiceId} {
+        allow read, write: if belongsToBusiness(businessId);
+      }
+
+      // C. Clientes (Patients/Clients) - Estrictamente privado
+      match /clients/{clientId} {
+         allow read, write: if belongsToBusiness(businessId);
+      }
+      
+      // Compatibilidad con colección 'patients' si se usa ese nombre
+      match /patients/{patientId} {
+         allow read, write: if belongsToBusiness(businessId);
+      }
+
+      // D. Servicios y Productos (Catálogo)
+      match /services/{serviceId} {
+        // Lectura publica permitida para la agenda online (si se requiere)
+        // Si no, restringir con belongsToBusiness(businessId)
+        allow read: if true; 
+        allow write: if belongsToBusiness(businessId);
+      }
+      
+      match /products/{productId} {
+        allow read, write: if belongsToBusiness(businessId);
+      }
+
+      // E. Recetas (Prescriptions)
+      match /prescriptions/{prescriptionId} {
+        allow read, write: if belongsToBusiness(businessId);
+      }
+      
+      // F. Pagos (Payments)
+      match /payments/{paymentId} {
+        allow read, write: if belongsToBusiness(businessId);
+      }
+
+      // G. Notas de Cliente (ClientNotes)
+      match /clientNotes/{noteId} {
+        allow read, write: if belongsToBusiness(businessId);
+      }
+    }
+
+    // Evitar acceso a cualquier otra colección no definida
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
