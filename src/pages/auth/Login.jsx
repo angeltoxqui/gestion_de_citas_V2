@@ -22,10 +22,10 @@ export default function Login() {
       switch (userRole) {
         case 'owner':
         case 'admin':
-          navigate('/doctor/dashboard')
+          navigate('/doctor') // Fixed: /doctor/dashboard does not exist
           break
         case 'receptionist':
-          navigate('/receptionist/dashboard')
+          navigate('/receptionist') // Fixed: /receptionist/dashboard does not exist
           break
         case 'staff':
         case 'professional':
@@ -69,11 +69,11 @@ export default function Login() {
         case 'owner':
         case 'admin':
           // Owner / Admin -> Full Dashboard
-          navigate('/doctor/dashboard')
+          navigate('/doctor') // Fixed
           break
         case 'receptionist':
           // Receptionist -> Reception Dashboard
-          navigate('/receptionist/dashboard')
+          navigate('/receptionist') // Fixed
           break
         case 'staff':
         case 'professional':

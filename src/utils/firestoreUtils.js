@@ -2,7 +2,7 @@ import { collection, doc, query, where } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
 // Tu función debería verse así:
-export const getBusinessCollection = (collectionName, businessId) => {
+export const getBusinessCollection = (businessId, collectionName) => {
     if (!businessId) throw new Error("businessId es requerido para consultas seguras");
 
     return query(

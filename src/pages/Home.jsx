@@ -1,15 +1,25 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 export default function Home() {
   const navigate = useNavigate()
+  const { user, loading } = useAuth()
   const appName = import.meta.env.VITE_APP_NAME || 'Life Clinic Management System'
-  const redirectDelay = Number(import.meta.env.VITE_REDIRECT_DELAY_MS || 5000)
 
   useEffect(() => {
-    const id = setTimeout(() => navigate('/login'), redirectDelay)
-    return () => clearTimeout(id)
-  }, [navigate, redirectDelay])
+    if (!loading) {
+      if (user) {
+        // Redirect based on role logic handled inside Login usually, 
+        // but here we can just send to logic which redirects logged in users
+        // OR better: specific redirects if we want to be faster. 
+        // For now, let's send to login which has the redirect logic for auth'd users
+        navigate('/login', { replace: true })
+      } else {
+        navigate('/login', { replace: true })
+      }
+    }
+  }, [user, loading, navigate])
 
   useEffect(() => {
     document.title = `${appName} — Welcome`
@@ -54,9 +64,18 @@ export default function Home() {
       <main className="container" role="main" aria-label="Welcome screen">
         <div className="mark" aria-hidden="true"></div>
         <h1>Bienvenido a {appName}</h1>
-        <p>Preparando todo para ti. Redirigiendo al inicio de sesión en breve…</p>
+        <p>Preparando todo para ti...</p>
         <div className="loader" aria-hidden="true"></div>
-        <div className="hint" aria-hidden="true">Serás redirigido en aproximadamente 5 segundos.</div>
+
+        {/* Fallback manual navigation */}
+        <div className="hint" style={{ marginTop: '24px' }}>
+          <button
+            onClick={() => navigate('/login')}
+            className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors text-sm font-medium border border-white/10"
+          >
+            Ir al inicio de sesión
+          </button>
+        </div>
       </main>
     </div>
   )

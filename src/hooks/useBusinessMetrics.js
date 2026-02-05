@@ -14,11 +14,9 @@ export const useBusinessMetrics = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // 🔒 GUARDIA: Si no hay businessId, abortamos para evitar "Permission Denied"
-        if (!user || !user.businessId) {
-            setLoading(false);
-            return;
-        }
+        // 🚩 CRÍTICO: Si el businessId no existe todavía, NO inicies el listener.
+        // Esto evita enviar una consulta vacía que genera el error de permisos.
+        if (!user?.businessId) return;
 
         // 🛡️ CONSULTA SEGURA: Filtramos estrictamente por businessId
         const metricsQuery = query(
@@ -49,7 +47,7 @@ export const useBusinessMetrics = () => {
         });
 
         return () => unsubscribe();
-    }, [user]);
+    }, [user?.businessId]);
 
     return { metrics, loading };
 };
